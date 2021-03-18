@@ -9,6 +9,18 @@
 yay -S glfw-x11 devil assimp cuda-9.0
 ```
 
+## optix
+```
+cd optix
+mkdir build
+cd build
+export CC=/usr/bin/gcc-6
+export CXX=/usr/bin/g++-6
+export CUDA_PATH=/opt/cuda-9.0
+cmake ../src
+make
+```
+
 ## optix-examples
 ```
 cd optix-examples
