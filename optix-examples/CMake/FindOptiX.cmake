@@ -29,7 +29,11 @@
 # Locate the OptiX distribution.  Search relative to the SDK first, then look in the system.
 
 # Our initial guess will be within the SDK.
-set(OptiX_INSTALL_DIR "${CMAKE_SOURCE_DIR}/../" CACHE PATH "Path to OptiX installed location.")
+set(OptiX_INSTALL_DIR "/opt/optix" CACHE PATH "Path to OptiX installed location.")
+set(optix_LIBRARY "/opt/optix/lib64/liboptix.so.5.1.1")
+set(OptiX_INCLUDE "/opt/optix/include")
+set(optixu_LIBRARY "/opt/optix/lib64/liboptixu.so.5.1.1")
+set(optix_prime_LIBRARY "/opt/optix/lib64/liboptix_prime.so.5.1.1")
 
 # The distribution contains both 32 and 64 bit libraries.  Adjust the library
 # search path based on the bit-ness of the build.  (i.e. 64: bin64, lib64; 32:
