@@ -1,15 +1,13 @@
+cmake_minimum_required(VERSION 3.17)
+
+SET(CMAKE_TOOLCHAIN_FILE "/usr/share/vcpkg/scripts/buildsystems/vcpkg.cmake")
+
 # This sets up the name of our project.  For our purposes the main thing this controls is
 # the name of the VS solution file.
 project(OptiX-Samples)
 
-# This enforces a particular version of CMake that we require to process the script files
-# properly.
-cmake_minimum_required(VERSION 2.8.8 FATAL_ERROR)
-
-# As of CMake 2.6 policies were introduced in order to provide a mechanism for
-# adding backwards compatibility one feature at a time.  We will just specify
-# that all policies will use version 2.6 symantics.
-cmake_policy(VERSION 2.6)
+set(CMAKE_CXX_STANDARD 17)
+set(OpenGL_GL_PREFERENCE "GLVND")
 
 # Add paths to our CMake code to the module path, so they can be found automatically by
 # CMake.
@@ -123,6 +121,11 @@ endif()
 # Locate the NVRT distribution.  Search the SDK first, then look in the system.
 set(OptiX_INSTALL_DIR "${CMAKE_SOURCE_DIR}/../" CACHE PATH "Path to OptiX installed location.")
 
+find_package(glfw3 3.3.2 CONFIG REQUIRED)
+find_package(imgui CONFIG REQUIRED)
+#find_package(spdlog 1.6.1 CONFIG REQUIRED)
+#find_package(tinyobjloader CONFIG REQUIRED)
+
 # Search for the OptiX libraries and include files.
 find_package(OptiX REQUIRED)
 
@@ -179,6 +182,9 @@ include_directories( ${CMAKE_CURRENT_SOURCE_DIR}/sutil
                      ${CMAKE_CURRENT_BINARY_DIR}
                      ${CUDA_INCLUDE_DIRS} )
 
+include_directories( ${CMAKE_CURRENT_SOURCE_DIR}/vendor )
+add_subdirectory( vendor/imgui )
+
 include(FindSUtilGLUT)
 
 if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/support/mdl-sdk/include/mi/mdl_sdk.h)
@@ -201,9 +207,7 @@ function(OPTIX_add_sample_executable target_name)
 
   # These calls will group PTX and CUDA files into their own directories in the Visual
   # Studio projects.
-  if (NOT CUDA_NVRTC_ENABLED)
-    source_group("PTX Files"  REGULAR_EXPRESSION ".+\\.ptx$")
-  endif()
+  source_group("PTX Files"  REGULAR_EXPRESSION ".+\\.ptx$")
   source_group("CUDA Files" REGULAR_EXPRESSION ".+\\.cu$")
 
   # Separate the sources from the CMake and CUDA options fed to the macro.  This code
@@ -213,25 +217,7 @@ function(OPTIX_add_sample_executable target_name)
   # the SDK.
   CUDA_GET_SOURCES_AND_OPTIONS(source_files cmake_options options ${ARGN})
 
-  if (CUDA_NVRTC_ENABLED)
-  
-    # Isolate OBJ target files. NVCC should only process these files and leave PTX targets for NVRTC
-    set(cu_obj_source_files)
-    foreach(file ${source_files})
-      get_source_file_property(_cuda_source_format ${file} CUDA_SOURCE_PROPERTY_FORMAT)
-      if(${_cuda_source_format} MATCHES "OBJ")
-        list(APPEND cu_obj_source_files ${file})
-      endif()
-    endforeach()
-
-    # Create the rules to build the OBJ from the CUDA files.
-    CUDA_WRAP_SRCS( ${target_name} OBJ generated_files ${cu_obj_source_files} ${cmake_options} OPTIONS ${options} )
-  else()
-  
-    # Create the rules to build the PTX and OBJ from the CUDA files.
-    CUDA_WRAP_SRCS( ${target_name} PTX generated_files ${source_files} ${cmake_options} OPTIONS ${options} )
-  endif()
-  
+  CUDA_WRAP_SRCS( ${target_name} PTX generated_files ${source_files} ${cmake_options} OPTIONS ${options} )
 
   # Here is where we create the rule to make the executable.  We define a target name and
   # list all the source files used to create the target.  In addition we also pass along
@@ -258,11 +244,17 @@ function(OPTIX_add_sample_executable target_name)
   if(USING_GNU_CXX)
     target_link_libraries( ${target_name} m ) # Explicitly link against math library (C samples don't do that by default)
   endif()
+
+  target_link_libraries(${target_name} glfw)
+  target_link_libraries(${target_name} imgui)
+  # target_link_libraries(${target_name} imgui::imgui)
+  # target_link_libraries(${target_name} imgui_glfw)
 endfunction()
 
 #########################################################
 #  List of scenees found in subdirectories.
 add_subdirectory(scene1)
+add_subdirectory(scene2)
 
 # Our sutil library.  The rules to build it are found in the subdirectory.
 add_subdirectory(sutil)

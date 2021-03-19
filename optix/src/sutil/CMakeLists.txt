@@ -52,6 +52,8 @@ set(sources
   sutilapi.h
   tinyobjloader/tiny_obj_loader.cc
   tinyobjloader/tiny_obj_loader.h
+  stb/stb_image_write.cpp
+  stb/stb_image_write.h
   )
 
 if(OPENGL_FOUND AND NOT APPLE)
@@ -87,9 +89,9 @@ include_directories(${SAMPLES_CUDA_DIR})
 
 # Compile the cuda files to ptx.  Note that this will ignore all of the non CUDA
 # files.
-if(NOT CUDA_NVRTC_ENABLED)
-  CUDA_COMPILE_PTX(ptx_files ${sources})
-endif()
+# if(NOT CUDA_NVRTC_ENABLED)
+CUDA_COMPILE_PTX(ptx_files ${sources})
+# endif()
 
 # Make the library.
 set(sutil_target "sutil_sdk")

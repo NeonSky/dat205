@@ -7,6 +7,7 @@
 
 ```
 yay -S glfw-x11 devil assimp cuda-9.0
+sudo vcpkg install imgui[glfw-binding]
 ```
 
 ## optix

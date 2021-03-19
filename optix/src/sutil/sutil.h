@@ -207,6 +207,16 @@ void SUTILAPI ensureMinimumSize(
 void SUTILAPI ensureMinimumSize(
     unsigned& width,                        // Will be assigned the minimum suitable width if too small.
     unsigned& height);                      // Will be assigned the minimum suitable height if too small.
+// Write the contents of the Buffer to an image file with type based on extension
+ void SUTILAPI writeBufferToFile(
+                                 const char* filename,               // Image file to be created
+                                 optix::Buffer buffer);              // Buffer to be displayed
+
+ // Write the contents of the Buffer to an image file with type based on extension (C API)
+ void SUTILAPI writeBufferToFile(
+                                 const char* filename,               // Image file to be created
+                                 RTbuffer buffer);                   // Buffer to be displayed
+
 
 } // end namespace sutil
 
