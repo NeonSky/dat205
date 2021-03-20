@@ -7,28 +7,16 @@
 
 ```
 yay -S glfw-x11 devil assimp cuda-9.0
-sudo vcpkg install imgui[glfw-binding]
+sudo vcpkg install imgui[glfw-binding] devil
 ```
 
-## optix
+## Build
 ```
-cd optix
 mkdir build
 cd build
 export CC=/usr/bin/gcc-6
 export CXX=/usr/bin/g++-6
 export CUDA_PATH=/opt/cuda-9.0
 cmake ../src
-make
-```
-
-## optix-examples
-```
-cd optix-examples
-mkdir build
-cd build
-export CC=/usr/bin/gcc-6
-export CXX=/usr/bin/g++-6
-cmake ..
 make
 ```
