@@ -75,7 +75,6 @@
 # If you have any questions, don't feel shy about posting to the OptiX forums:
 # http://developer.nvidia.com/forums/index.php?showforum=43
 
-
 # This sets up the name of our project.  For our purposes the main thing this controls is
 # the name of the VS solution file.
 project(OptiX-Advanced-Samples)
@@ -310,6 +309,7 @@ add_subdirectory(optixProgressivePhotonMap)
 add_subdirectory(optixVox)
 add_subdirectory(optixParticleVolumes)
 add_subdirectory(optixIntroduction)
+add_subdirectory(dat205)
 
 # Our sutil library.  The rules to build it are found in the subdirectory.
 add_subdirectory(sutil)
