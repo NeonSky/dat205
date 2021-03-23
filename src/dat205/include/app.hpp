@@ -33,6 +33,8 @@ private:
   GLuint m_output_pbo;
   GLuint m_output_program;
 
+  optix::float3 m_bg_color;
+
   void handle_user_input();
   void display();
   void render_gui();

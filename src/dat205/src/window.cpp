@@ -8,6 +8,10 @@ void open_gui(GLFWwindow* window, std::function<void()> f) {
   ImGui::CreateContext();
   ImGui_ImplGlfwGL2_Init(window, true);
 
+  // Save settings
+  ImGuiIO &io = ImGui::GetIO();
+  io.IniFilename = "/tmp/imgui.ini";
+
   // Initializes the GLFW's ImGui implementation (including the font texture).
   ImGui_ImplGlfwGL2_NewFrame();
   ImGui::EndFrame();

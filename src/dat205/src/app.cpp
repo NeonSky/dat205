@@ -32,7 +32,6 @@ Application::Application(ApplicationCreateInfo create_info) {
   glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_REPLACE);
 
   m_output_program = create_program("output.vert", "output.frag");
-  // m_output_program = create_program("test.vert", "test.frag");
 
   // Associate the sampler with texture image unit 0
   use_program(m_output_program, [&]() {
@@ -77,15 +76,11 @@ Application::Application(ApplicationCreateInfo create_info) {
 void Application::run() {
   while (!glfwWindowShouldClose(m_window)) {
 
-    handle_user_input();
+    // Adjust viewport to (potentially new) window dimensions.
     update_viewport();
 
     render_scene();
-    display();
-
-    if (m_show_gui) {
-      render_gui();
-    }
+    render_gui();
 
     // Swap the front and back buffers of the default (double-buffered) framebuffer.
     glfwSwapBuffers(m_window);
@@ -122,8 +117,15 @@ void Application::display() {
 }
 
 void Application::render_gui() {
-  render_gui_frame([]() {
-    ImGui::ShowTestWindow();
+  render_gui_frame([&]() {
+    handle_user_input();
+    if (m_show_gui) {
+      ImGui::Begin("DAT205");
+      if (ImGui::ColorEdit3("Background", (float *)&m_bg_color)) {
+        m_ctx["sysColorBackground"]->setFloat(m_bg_color);
+      }
+      ImGui::End();
+    }
   });
 }
 
@@ -139,6 +141,8 @@ void Application::render_scene() {
       glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, (GLsizei)m_window_width, (GLsizei)m_window_height, 0, GL_RGBA, GL_FLOAT, (void *) 0);
     });
   });
+
+  display();
 }
 
 void Application::update_viewport() {
