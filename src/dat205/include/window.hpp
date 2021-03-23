@@ -15,3 +15,5 @@
 
 void open_gui(GLFWwindow* window, std::function<void()> f);
 void open_window(std::string title, unsigned int width, unsigned int height, std::function<void(GLFWwindow* window)> f);
+
+void render_gui_frame(std::function<void()> f);

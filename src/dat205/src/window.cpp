@@ -108,3 +108,16 @@ void open_window(std::string title, unsigned int width, unsigned int height, std
   glfwDestroyWindow(window);
   glfwTerminate();
 }
+
+void render_gui_frame(std::function<void()> f) {
+
+  // Start new frame.
+  ImGui_ImplGlfwGL2_NewFrame();
+
+  // Run user code that fills the frame.
+  f();
+
+  // Render the resulting frame.
+  ImGui::Render();
+  ImGui_ImplGlfwGL2_RenderDrawData(ImGui::GetDrawData());
+}
