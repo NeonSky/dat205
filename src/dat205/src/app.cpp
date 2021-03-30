@@ -26,6 +26,9 @@ Application::Application(ApplicationCreateInfo create_info) {
   m_show_gui = true;
   m_camera_zoom_speed  = 4.5f;
 
+  m_ball_x = 0;
+  m_ball_z = 0;
+
   glViewport(0, 0, m_window_width, m_window_height);
   glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
 
@@ -187,7 +190,7 @@ void Application::create_scene() {
     };
     optix::Matrix4x4 matrixSphere(trafoSphere);
 
-    optix::Transform trSphere = m_ctx->createTransform();
+    trSphere = m_ctx->createTransform();
     trSphere->setChild(ggSphere);
     trSphere->setMatrix(false, matrixSphere.getData(), matrixSphere.inverse().getData());
 
@@ -266,9 +269,12 @@ void Application::render_gui() {
     handle_user_input();
     if (m_show_gui) {
       ImGui::Begin("DAT205");
-      // if (ImGui::DragFloat("Mouse Speed", &m_mouse_speed, 0.1f, 0.1f, 100.0f, "%.1f")) {
-      //   m_camera.setSpeedRatio(m_mouse_speed);
-      // }
+      ImGui::DragFloat("Ball x", &m_ball_x, 0.2f, -10.0f, 10.0f, "%.1f");
+      ImGui::DragFloat("Ball z", &m_ball_z, 0.2f, -10.0f, 10.0f, "%.1f");
+
+      optix::Matrix4x4 m = optix::Matrix4x4::translate(optix::make_float3(m_ball_x, 1.0f, m_ball_z));
+      trSphere->setMatrix(false, m.getData(), m.inverse().getData());
+      m_root_acceleration->markDirty();
 
       // if (ImGui::ColorEdit3("Background", (float *)&m_bg_color)) {
       //   m_ctx["sysColorBackground"]->setFloat(m_bg_color);
