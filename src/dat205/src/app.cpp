@@ -6,11 +6,27 @@
 
 #include <iostream>
 
+#define ACC_TYPE "Trbvh"
+
+void setAccelerationProperties(optix::Acceleration acceleration) {
+  // This requires that the position is the first element and it must be float x, y, z.
+  acceleration->setProperty("vertex_buffer_name", "attributesBuffer");
+  assert(sizeof(VertexAttributes) == 48);
+  acceleration->setProperty("vertex_buffer_stride", "48");
+
+  acceleration->setProperty("index_buffer_name", "indicesBuffer");
+  assert(sizeof(optix::uint3) == 12);
+  acceleration->setProperty("index_buffer_stride", "12");
+}
+
 Application::Application(ApplicationCreateInfo create_info) {
   m_window = create_info.window;
   m_window_width = create_info.window_width;
   m_window_height = create_info.window_height;
+  m_camera.setViewport(m_window_width, m_window_height);
+
   m_show_gui = true;
+  m_mouse_speed = 10.0f;
 
   glViewport(0, 0, m_window_width, m_window_height);
   glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
@@ -18,7 +34,10 @@ Application::Application(ApplicationCreateInfo create_info) {
   glGenBuffers(1, &m_output_pbo);
   // Buffer size must be > 0 or OptiX can't create a buffer from it.
   bind_buffer(GL_PIXEL_UNPACK_BUFFER, m_output_pbo, [&]() {
-    glBufferData(GL_PIXEL_UNPACK_BUFFER, m_window_width * m_window_height * sizeof(float) * 4, (void *)0, GL_STREAM_READ); // RGBA32F from byte offset 0 in the pixel unpack buffer.
+    glBufferData(GL_PIXEL_UNPACK_BUFFER,
+                 m_window_width * m_window_height * sizeof(float) * 4,
+                 (void *) 0,
+                 GL_STREAM_READ); // RGBA32F from byte offset 0 in the pixel unpack buffer.
   });
 
   glGenTextures(1, &m_output_texture);
@@ -29,8 +48,6 @@ Application::Application(ApplicationCreateInfo create_info) {
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
   });
 
-  glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_REPLACE);
-
   m_output_program = create_program("output.vert", "output.frag");
 
   // Associate the sampler with texture image unit 0
@@ -38,6 +55,7 @@ Application::Application(ApplicationCreateInfo create_info) {
     glUniform1i(glGetUniformLocation(m_output_program, "samplerHDR"), 0); // texture image unit 0
   });
 
+  // Init OptiX
   m_ctx = optix::Context::create();
 
   std::vector<int> devices = m_ctx->getEnabledDevices();
@@ -45,23 +63,32 @@ Application::Application(ApplicationCreateInfo create_info) {
     std::cout << "Using local device " << devices[i] << ": " << m_ctx->getDeviceName(devices[i]) << std::endl;
   }
 
+  // Init Programs
   try {
     m_ray_gen_program = m_ctx->createProgramFromPTXFile(ptxPath("raygen.cu"), "raygeneration");
     m_exception_program = m_ctx->createProgramFromPTXFile(ptxPath("exception.cu"), "exception");
+
+    m_miss_program = m_ctx->createProgramFromPTXFile(ptxPath("miss.cu"), "miss_environment_constant");
+
+    // Geometry
+    m_boundingbox_triangle_indexed  = m_ctx->createProgramFromPTXFile(ptxPath("boundingbox_triangle_indexed.cu"),  "boundingbox_triangle_indexed");
+    m_intersection_triangle_indexed = m_ctx->createProgramFromPTXFile(ptxPath("intersection_triangle_indexed.cu"), "intersection_triangle_indexed");
+
+    m_closest_hit_program = m_ctx->createProgramFromPTXFile(ptxPath("closesthit.cu"), "closesthit");
+
   }
   catch(optix::Exception& e) {
     std::cerr << e.getErrorString() << std::endl;
   }
 
+  // Init renderer
   m_ctx->setEntryPointCount(1); // 0 = render
-  m_ctx->setRayTypeCount(0);
+  m_ctx->setRayTypeCount(1);    // 0 = radiance
   m_ctx->setStackSize(1024);
 
   // Debugging settings
   m_ctx->setPrintEnabled(true);
   m_ctx->setExceptionEnabled(RT_EXCEPTION_ALL, true);
-  
-  m_ctx["sysColorBackground"]->setFloat(0.462745f, 0.72549f, 0.0f);
 
   m_output_buffer = m_ctx->createBufferFromGLBO(RT_BUFFER_OUTPUT, m_output_pbo);
   m_output_buffer->setFormat(RT_FORMAT_FLOAT4); // RGBA32F
@@ -71,7 +98,114 @@ Application::Application(ApplicationCreateInfo create_info) {
 
   m_ctx->setRayGenerationProgram(0, m_ray_gen_program);
   m_ctx->setExceptionProgram(0, m_exception_program);
+  m_ctx->setMissProgram(0, m_miss_program);
+
+  // Default initialization. Will be overwritten on the first frame.
+  m_ctx["sysCameraPosition"]->setFloat(0.0f, 0.0f, 1.0f);
+  m_ctx["sysCameraU"]->setFloat(1.0f, 0.0f, 0.0f);
+  m_ctx["sysCameraV"]->setFloat(0.0f, 1.0f, 0.0f);
+  m_ctx["sysCameraW"]->setFloat(0.0f, 0.0f, -1.0f);
+
+  // Init scene
+  create_scene();
+  m_ctx->validate();
+  m_ctx->launch(0, 0, 0); // dummy launch to build everything
 };
+
+void Application::create_scene() {
+  // TODO: Extract this try/catch logic to a function
+  try {
+    m_opaque_mat = m_ctx->createMaterial();
+    m_opaque_mat->setClosestHitProgram(0, m_closest_hit_program);
+
+    m_root_group = m_ctx->createGroup();
+
+    m_root_acceleration = m_ctx->createAcceleration(ACC_TYPE);
+    m_root_group->setAcceleration(m_root_acceleration);
+
+    // TODO: Rename this object
+    m_ctx["sysTopObject"]->set(m_root_group);
+
+    unsigned int count;
+
+    // Demo code only!
+    // Mind that these local OptiX objects will leak when not cleaning up the scene properly on changes.
+    // Destroying the OptiX context will clean them up at program exit though.
+
+    // Add a ground plane on the xz-plane at y = 0.0f with a 1x1 tesselation (2 triangles).
+    optix::Geometry geoPlane = createPlane(1, 1, 1);
+
+    optix::GeometryInstance giPlane = m_ctx->createGeometryInstance(); // This connects Geometries with Materials.
+    giPlane->setGeometry(geoPlane);
+    giPlane->setMaterialCount(1);
+    giPlane->setMaterial(0, m_opaque_mat);
+
+    optix::Acceleration accPlane = m_ctx->createAcceleration(ACC_TYPE);
+    setAccelerationProperties(accPlane);
+    
+    // This connects GeometryInstances with Acceleration structures. (All OptiX nodes with "Group" in the name hold an Acceleration.)
+    optix::GeometryGroup ggPlane = m_ctx->createGeometryGroup();
+    ggPlane->setAcceleration(accPlane);
+    ggPlane->setChildCount(1);
+    ggPlane->setChild(0, giPlane);
+
+    // The original object coordinates of the plane have unit size, from -1.0f to 1.0f in x-axis and z-axis.
+    // Scale the plane to go from -5 to 5.
+    float trafoPlane[16] = {
+      5.0f, 0.0f, 0.0f, 0.0f,
+      0.0f, 5.0f, 0.0f, 0.0f,
+      0.0f, 0.0f, 5.0f, 0.0f,
+      0.0f, 0.0f, 0.0f, 1.0f
+    };
+    optix::Matrix4x4 matrixPlane(trafoPlane);
+
+    optix::Transform trPlane = m_ctx->createTransform();
+    trPlane->setChild(ggPlane);
+    trPlane->setMatrix(false, matrixPlane.getData(), matrixPlane.inverse().getData());
+    
+    // Add the transform node placeing the plane to the scene's root Group node.
+    count = m_root_group->getChildCount();
+    m_root_group->setChildCount(count + 1);
+    m_root_group->setChild(count, trPlane);
+
+    // Add a tessellated sphere with 180 longitudes and 90 latitudes (32400 triangles) with radius 1.0f around the origin.
+    // The last argument is the maximum theta angle, which allows to generate spheres with a whole at the top.
+    // (Useful to test thin-walled materials with different materials on the front- and backface.)
+    optix::Geometry geoSphere = createSphere(180, 90, 1.0f, M_PIf);
+
+    optix::Acceleration accSphere = m_ctx->createAcceleration(ACC_TYPE);
+    setAccelerationProperties(accSphere);
+    
+    optix::GeometryInstance giSphere = m_ctx->createGeometryInstance(); // This connects Geometries with Materials.
+    giSphere->setGeometry(geoSphere);
+    giSphere->setMaterialCount(1);
+    giSphere->setMaterial(0, m_opaque_mat);
+
+    optix::GeometryGroup ggSphere = m_ctx->createGeometryGroup();    // This connects GeometryInstances with Acceleration structures. (All OptiX nodes with "Group" in the name hold an Acceleration.)
+    ggSphere->setAcceleration(accSphere);
+    ggSphere->setChildCount(1);
+    ggSphere->setChild(0, giSphere);
+
+    float trafoSphere[16] = {
+      1.0f, 0.0f, 0.0f, 0.0f,
+      0.0f, 1.0f, 0.0f, 1.0f, // Translate the sphere by 1.0f on the y-axis to be above the plane, exactly touching.
+      0.0f, 0.0f, 1.0f, 0.0f,
+      0.0f, 0.0f, 0.0f, 1.0f
+    };
+    optix::Matrix4x4 matrixSphere(trafoSphere);
+
+    optix::Transform trSphere = m_ctx->createTransform();
+    trSphere->setChild(ggSphere);
+    trSphere->setMatrix(false, matrixSphere.getData(), matrixSphere.inverse().getData());
+
+    count = m_root_group->getChildCount();
+    m_root_group->setChildCount(count + 1);
+    m_root_group->setChild(count, trSphere);
+
+  } catch(optix::Exception& e) {
+    std::cerr << e.getErrorString() << std::endl;
+  }
+}
 
 void Application::run() {
   while (!glfwWindowShouldClose(m_window)) {
@@ -85,6 +219,7 @@ void Application::run() {
     // Swap the front and back buffers of the default (double-buffered) framebuffer.
     glfwSwapBuffers(m_window);
   }
+  m_ctx->destroy();
 }
 
 void Application::handle_user_input() {
@@ -95,6 +230,11 @@ void Application::handle_user_input() {
   if (ImGui::IsKeyPressed('G', false)) {
     m_show_gui = !m_show_gui;
   }
+
+  const ImVec2 mousePosition = ImGui::GetMousePos(); // Mouse coordinate window client rect.
+  const int x = int(mousePosition.x);
+  const int y = int(mousePosition.y);
+  m_camera.orbit(x, y);
 }
 
 void Application::display() {
@@ -121,9 +261,13 @@ void Application::render_gui() {
     handle_user_input();
     if (m_show_gui) {
       ImGui::Begin("DAT205");
-      if (ImGui::ColorEdit3("Background", (float *)&m_bg_color)) {
-        m_ctx["sysColorBackground"]->setFloat(m_bg_color);
+      if (ImGui::DragFloat("Mouse Speed", &m_mouse_speed, 0.1f, 0.1f, 100.0f, "%.1f")) {
+        m_camera.setSpeedRatio(m_mouse_speed);
       }
+
+      // if (ImGui::ColorEdit3("Background", (float *)&m_bg_color)) {
+      //   m_ctx["sysColorBackground"]->setFloat(m_bg_color);
+      // }
       ImGui::End();
     }
   });
@@ -131,6 +275,19 @@ void Application::render_gui() {
 
 void Application::render_scene() {
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+  optix::float3 camera_pos;
+  optix::float3 cameraU;
+  optix::float3 cameraV;
+  optix::float3 cameraW;
+
+  bool cameraChanged = m_camera.getFrustum(camera_pos, cameraU, cameraV, cameraW);
+  if (cameraChanged) {
+    m_ctx["sysCameraPosition"]->setFloat(camera_pos);
+    m_ctx["sysCameraU"]->setFloat(cameraU);
+    m_ctx["sysCameraV"]->setFloat(cameraV);
+    m_ctx["sysCameraW"]->setFloat(cameraW);
+  }
 
   m_ctx->launch(0, m_window_width, m_window_height);
 
@@ -154,18 +311,57 @@ void Application::update_viewport() {
 
     m_window_width = width;
     m_window_height = height;
-    glViewport(0, 0, width, height);
+    glViewport(0, 0, m_window_width, m_window_height);
 
     // Unregister buffer while modifying it so CUDA will be notified of the size change (and not crash).
     unregister_buffer(m_output_buffer, [&]() {
 
       // Resize output buffer to match window dimensions.
-      m_output_buffer->setSize(width, height);
+      m_output_buffer->setSize(m_window_width, m_window_height);
 
       // Initialize with empty data.
       bind_buffer(GL_PIXEL_UNPACK_BUFFER, m_output_buffer->getGLBOId(), [&]() {
-        glBufferData(GL_PIXEL_UNPACK_BUFFER, m_output_buffer->getElementSize() * width * height, nullptr, GL_STREAM_DRAW);
+        glBufferData(GL_PIXEL_UNPACK_BUFFER,
+                     m_output_buffer->getElementSize() * m_window_width * m_window_height,
+                     nullptr,
+                     GL_STREAM_DRAW);
       });
     });
+
+    m_camera.setViewport(m_window_width, m_window_height);
   }
+}
+
+optix::Geometry Application::createGeometry(std::vector<VertexAttributes> const& attributes, std::vector<unsigned int> const& indices) {
+  optix::Geometry geometry(nullptr);
+
+  try
+  {
+    geometry = m_ctx->createGeometry();
+
+    optix::Buffer attributesBuffer = m_ctx->createBuffer(RT_BUFFER_INPUT, RT_FORMAT_USER);
+    attributesBuffer->setElementSize(sizeof(VertexAttributes));
+    attributesBuffer->setSize(attributes.size());
+
+    void *dst = attributesBuffer->map(0, RT_BUFFER_MAP_WRITE_DISCARD);
+    memcpy(dst, attributes.data(), sizeof(VertexAttributes) * attributes.size());
+    attributesBuffer->unmap();
+
+    optix::Buffer indicesBuffer = m_ctx->createBuffer(RT_BUFFER_INPUT, RT_FORMAT_UNSIGNED_INT3, indices.size() / 3);
+    dst = indicesBuffer->map(0, RT_BUFFER_MAP_WRITE_DISCARD);
+    memcpy(dst, indices.data(), sizeof(optix::uint3) * indices.size() / 3);
+    indicesBuffer->unmap();
+
+    geometry->setBoundingBoxProgram(m_boundingbox_triangle_indexed);
+    geometry->setIntersectionProgram(m_intersection_triangle_indexed);
+
+    geometry["attributesBuffer"]->setBuffer(attributesBuffer);
+    geometry["indicesBuffer"]->setBuffer(indicesBuffer);
+    geometry->setPrimitiveCount((unsigned int)(indices.size()) / 3);
+  }
+  catch(optix::Exception& e)
+  {
+    std::cerr << e.getErrorString() << std::endl;
+  }
+  return geometry;
 }

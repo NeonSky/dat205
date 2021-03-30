@@ -36,6 +36,9 @@ GLuint create_program(std::string vert_shader_path, std::string frag_shader_path
     std::cerr << "Failed to link program object with its attached shaders." << std::endl;
   }
 
+  glValidateProgram(program);
+  check_info_log(program);
+
   return program;
 }
 

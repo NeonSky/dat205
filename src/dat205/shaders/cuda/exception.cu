@@ -1,12 +1,14 @@
 #include <optix.h>
 
+#include "common.cuh"
+
 rtBuffer<float4, 2> sysOutputBuffer; // RGBA32F
 
 rtDeclareVariable(uint2, theLaunchIndex, rtLaunchIndex, );
 
 RT_PROGRAM void exception() {
-  const unsigned int code = rtGetExceptionCode();
 
+  const unsigned int code = rtGetExceptionCode();
   if (RT_EXCEPTION_USER <= code) {
     rtPrintf("User exception %d at (%d, %d)\n", code - RT_EXCEPTION_USER, theLaunchIndex.x, theLaunchIndex.y);
   } else {

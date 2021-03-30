@@ -1,9 +1,12 @@
 #pragma once
 
 #include "window.hpp"
+#include "camera.hpp"
 
 #include <optix.h>
 #include <optixu/optixpp_namespace.h>
+
+#include "shaders/cuda/common.cuh"
 
 struct ApplicationCreateInfo {
   GLFWwindow* window;
@@ -25,6 +28,11 @@ private:
 
   optix::Program m_ray_gen_program;
   optix::Program m_exception_program;
+  optix::Program m_miss_program;
+  optix::Program m_closest_hit_program;
+
+  optix::Program m_boundingbox_triangle_indexed;
+  optix::Program m_intersection_triangle_indexed;
 
   optix::Context m_ctx;
   optix::Buffer m_output_buffer;
@@ -33,12 +41,24 @@ private:
   GLuint m_output_pbo;
   GLuint m_output_program;
 
-  optix::float3 m_bg_color;
+  optix::Group        m_root_group;
+  optix::Acceleration m_root_acceleration;
+
+  optix::Material m_opaque_mat;
+
+  PinholeCamera m_camera;
+  float m_mouse_speed;
 
   void handle_user_input();
   void display();
   void render_gui();
   void render_scene();
   void update_viewport();
+
+  void create_scene();
+  optix::Geometry createPlane(const int tessU, const int tessV, const int upAxis);
+  optix::Geometry createSphere(const int tessU, const int tessV, const float radius, const float maxTheta);
+  optix::Geometry createGeometry(std::vector<VertexAttributes> const& attributes, std::vector<unsigned int> const& indices);
+
 };
 
