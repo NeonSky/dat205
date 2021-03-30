@@ -24,7 +24,7 @@ Application::Application(ApplicationCreateInfo create_info) {
   m_camera.setViewport(m_window_width, m_window_height);
 
   m_show_gui = true;
-  m_mouse_speed = 10.0f;
+  m_camera_zoom_speed  = 4.5f;
 
   glViewport(0, 0, m_window_width, m_window_height);
   glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
@@ -62,7 +62,7 @@ Application::Application(ApplicationCreateInfo create_info) {
   }
 
   // Init Programs
-  try {
+  run_unsafe_optix_code([&]() {
     m_ray_gen_program = m_ctx->createProgramFromPTXFile(ptxPath("raygen.cu"), "raygeneration");
     m_exception_program = m_ctx->createProgramFromPTXFile(ptxPath("exception.cu"), "exception");
 
@@ -73,11 +73,7 @@ Application::Application(ApplicationCreateInfo create_info) {
     m_intersection_triangle_indexed = m_ctx->createProgramFromPTXFile(ptxPath("intersection_triangle_indexed.cu"), "intersection_triangle_indexed");
 
     m_closest_hit_program = m_ctx->createProgramFromPTXFile(ptxPath("closesthit.cu"), "closesthit");
-
-  }
-  catch(optix::Exception& e) {
-    std::cerr << e.getErrorString() << std::endl;
-  }
+  });
 
   // Init renderer
   m_ctx->setEntryPointCount(1); // 0 = render
@@ -111,8 +107,7 @@ Application::Application(ApplicationCreateInfo create_info) {
 };
 
 void Application::create_scene() {
-  // TODO: Extract this try/catch logic to a function
-  try {
+  run_unsafe_optix_code([&]() {
     m_opaque_mat = m_ctx->createMaterial();
     m_opaque_mat->setClosestHitProgram(0, m_closest_hit_program);
 
@@ -131,7 +126,7 @@ void Application::create_scene() {
     // Destroying the OptiX context will clean them up at program exit though.
 
     // Add a ground plane on the xz-plane at y = 0.0f with a 1x1 tesselation (2 triangles).
-    optix::Geometry geoPlane = createPlane(1, 1, 1);
+    optix::Geometry geoPlane = create_plane(1, 1);
 
     optix::GeometryInstance giPlane = m_ctx->createGeometryInstance(); // This connects Geometries with Materials.
     giPlane->setGeometry(geoPlane);
@@ -169,7 +164,7 @@ void Application::create_scene() {
     // Add a tessellated sphere with 180 longitudes and 90 latitudes (32400 triangles) with radius 1.0f around the origin.
     // The last argument is the maximum theta angle, which allows to generate spheres with a whole at the top.
     // (Useful to test thin-walled materials with different materials on the front- and backface.)
-    optix::Geometry geoSphere = createSphere(180, 90, 1.0f, M_PIf);
+    optix::Geometry geoSphere = create_sphere(180, 90, 1.0f, M_PIf);
 
     optix::Acceleration accSphere = m_ctx->createAcceleration(ACC_TYPE);
     setAccelerationProperties(accSphere);
@@ -199,10 +194,7 @@ void Application::create_scene() {
     count = m_root_group->getChildCount();
     m_root_group->setChildCount(count + 1);
     m_root_group->setChild(count, trSphere);
-
-  } catch(optix::Exception& e) {
-    std::cerr << e.getErrorString() << std::endl;
-  }
+  });
 }
 
 void Application::run() {
@@ -232,7 +224,22 @@ void Application::handle_user_input() {
   const ImVec2 mousePosition = ImGui::GetMousePos(); // Mouse coordinate window client rect.
   const int x = int(mousePosition.x);
   const int y = int(mousePosition.y);
-  m_camera.orbit(x, y);
+
+  // Ensure mouse is not interacting with the GUI.
+  if (!io.WantCaptureMouse) {
+    if (ImGui::IsMouseDown(0)) { // Left mouse button
+      m_camera.orbit(x, y);
+    }
+    else if (ImGui::IsMouseDown(1)) { // Right mouse button
+      m_camera.pan(x, y);
+    }
+    else if (io.MouseWheel != 0.0f) { // Mouse wheel scroll
+      m_camera.zoom(m_camera_zoom_speed * -io.MouseWheel);
+    }
+    else {
+      m_camera.setBaseCoordinates(x, y);
+    }
+  }
 }
 
 void Application::display() {
@@ -259,9 +266,9 @@ void Application::render_gui() {
     handle_user_input();
     if (m_show_gui) {
       ImGui::Begin("DAT205");
-      if (ImGui::DragFloat("Mouse Speed", &m_mouse_speed, 0.1f, 0.1f, 100.0f, "%.1f")) {
-        m_camera.setSpeedRatio(m_mouse_speed);
-      }
+      // if (ImGui::DragFloat("Mouse Speed", &m_mouse_speed, 0.1f, 0.1f, 100.0f, "%.1f")) {
+      //   m_camera.setSpeedRatio(m_mouse_speed);
+      // }
 
       // if (ImGui::ColorEdit3("Background", (float *)&m_bg_color)) {
       //   m_ctx["sysColorBackground"]->setFloat(m_bg_color);
@@ -330,11 +337,10 @@ void Application::update_viewport() {
   }
 }
 
-optix::Geometry Application::createGeometry(std::vector<VertexAttributes> const& attributes, std::vector<unsigned int> const& indices) {
+optix::Geometry Application::create_geometry(std::vector<VertexAttributes> const& attributes, std::vector<unsigned int> const& indices) {
   optix::Geometry geometry(nullptr);
 
-  try
-  {
+  run_unsafe_optix_code([&]() {
     geometry = m_ctx->createGeometry();
 
     optix::Buffer attributesBuffer = m_ctx->createBuffer(RT_BUFFER_INPUT, RT_FORMAT_USER);
@@ -356,10 +362,7 @@ optix::Geometry Application::createGeometry(std::vector<VertexAttributes> const&
     geometry["attributesBuffer"]->setBuffer(attributesBuffer);
     geometry["indicesBuffer"]->setBuffer(indicesBuffer);
     geometry->setPrimitiveCount((unsigned int)(indices.size()) / 3);
-  }
-  catch(optix::Exception& e)
-  {
-    std::cerr << e.getErrorString() << std::endl;
-  }
+  });
+
   return geometry;
 }

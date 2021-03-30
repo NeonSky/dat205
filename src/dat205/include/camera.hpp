@@ -8,8 +8,7 @@
 #include <optixu/optixu_math_namespace.h>
 
 
-class PinholeCamera
-{
+class PinholeCamera {
 public:
   PinholeCamera();
   ~PinholeCamera();

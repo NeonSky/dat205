@@ -4,8 +4,7 @@
 #include <iostream>
 #include <sstream>
 
-optix::Geometry Application::createSphere(const int tessU, const int tessV, const float radius, const float maxTheta)
-{
+optix::Geometry Application::create_sphere(const int tessU, const int tessV, const float radius, const float maxTheta) {
   assert(3 <= tessU && 3 <= tessV);
 
   std::vector<VertexAttributes> attributes;
@@ -74,5 +73,5 @@ optix::Geometry Application::createSphere(const int tessU, const int tessV, cons
   
   std::cout << "createSphere(): Vertices = " << attributes.size() <<  ", Triangles = " << indices.size() / 3 << std::endl;
 
-  return createGeometry(attributes, indices);
+  return create_geometry(attributes, indices);
 }

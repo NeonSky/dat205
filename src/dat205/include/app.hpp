@@ -43,7 +43,7 @@ private:
   optix::Material m_opaque_mat;
 
   PinholeCamera m_camera;
-  float m_mouse_speed;
+  float m_camera_zoom_speed;
 
   void handle_user_input();
   void display();
@@ -52,9 +52,9 @@ private:
   void update_viewport();
 
   void create_scene();
-  optix::Geometry createPlane(const int tessU, const int tessV, const int upAxis);
-  optix::Geometry createSphere(const int tessU, const int tessV, const float radius, const float maxTheta);
-  optix::Geometry createGeometry(std::vector<VertexAttributes> const& attributes, std::vector<unsigned int> const& indices);
+  optix::Geometry create_plane(const int tessU, const int tessV);
+  optix::Geometry create_sphere(const int tessU, const int tessV, const float radius, const float maxTheta);
+  optix::Geometry create_geometry(std::vector<VertexAttributes> const& attributes, std::vector<unsigned int> const& indices);
 
 };
 
