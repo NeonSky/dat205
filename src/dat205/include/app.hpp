@@ -1,12 +1,8 @@
 #pragma once
 
-#include "window.hpp"
 #include "camera.hpp"
-
-#include <optix.h>
-#include <optixu/optixpp_namespace.h>
-
-#include "shaders/cuda/common.cuh"
+#include "util/optix.hpp"
+#include "util/window.hpp"
 
 struct ApplicationCreateInfo {
   GLFWwindow* window;

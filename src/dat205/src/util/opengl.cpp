@@ -1,16 +1,22 @@
-#include "opengl/shader.hpp"
-
-#include <sutil.h>
+#include "util/opengl.hpp"
 
 #include <fstream>
 #include <iostream>
 
+// Implementation helpers
 void check_info_log(GLuint gl_object);
+std::string shader_root_path();
 
-std::string shader_root_path() {
-  return "./dat205/shaders/glsl/";
+// Buffers
+void bind_buffer(GLenum target, GLuint buffer, std::function<void()> f) {
+    glBindBuffer(target, buffer);
+
+    f();
+
+    glBindBuffer(target, 0);
 }
 
+// Shaders
 GLuint create_program(std::string vert_shader_path, std::string frag_shader_path) {
 
   // Load shaders from files.
@@ -77,6 +83,20 @@ void use_program(GLuint program, std::function<void()> f) {
   glUseProgram(program);
   f();
   glUseProgram(0);
+}
+
+// Textures
+void bind_texture(GLenum target, GLuint texture, std::function<void()> f) {
+    glBindTexture(target, texture);
+
+    f();
+
+    glBindTexture(target, 0);
+}
+
+// Implementation helpers
+std::string shader_root_path() {
+  return "./dat205/shaders/glsl/";
 }
 
 void check_info_log(GLuint gl_object) {

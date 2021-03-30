@@ -1,6 +1,4 @@
-#include "optix_util.hpp"
-
-#include <sutil.h>
+#include "util/optix.hpp"
 
 #include <iostream>
 

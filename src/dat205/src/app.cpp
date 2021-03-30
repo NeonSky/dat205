@@ -1,8 +1,6 @@
 #include "app.hpp"
 
-#include "opengl/shader.hpp"
-#include "opengl/util.hpp"
-#include "optix_util.hpp"
+#include "util/opengl.hpp"
 
 #include <iostream>
 

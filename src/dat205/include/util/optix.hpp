@@ -1,9 +1,9 @@
 #pragma once
 
-#include <optix.h>
-#include <optixu/optixpp_namespace.h>
-#include <optixu/optixu_math_namespace.h>
-#include <optixu/optixu_matrix_namespace.h>
+#include "shaders/cuda/common.cuh"
+
+// Contains helpers for loading compiled CUDA files and more.
+#include <sutil.h>
 
 #include <functional>
 
