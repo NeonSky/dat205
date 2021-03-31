@@ -4,6 +4,10 @@
 #include "util/optix.hpp"
 #include "util/window.hpp"
 
+// Enable the assert() macro.
+#undef NDEBUG
+#include <assert.h>
+
 struct ApplicationCreateInfo {
   GLFWwindow* window;
   unsigned int window_width;
@@ -62,6 +66,7 @@ private:
   void update_scene();
   void render_scene();
 
+  optix::Geometry create_cuboid(float width, float height, float depth);
   optix::Geometry create_plane(const int tessU, const int tessV);
   optix::Geometry create_sphere(const int tessU, const int tessV, const float radius, const float maxTheta);
   optix::Geometry create_geometry(std::vector<VertexAttributes> const& attributes, std::vector<unsigned int> const& indices);

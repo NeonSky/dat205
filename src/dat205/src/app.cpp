@@ -133,81 +133,109 @@ void Application::create_scene() {
     // TODO: Rename this object
     m_ctx["sysTopObject"]->set(m_root_group);
 
-    unsigned int count;
-
     // Demo code only!
     // Mind that these local OptiX objects will leak when not cleaning up the scene properly on changes.
     // Destroying the OptiX context will clean them up at program exit though.
 
-    // Add a ground plane on the xz-plane at y = 0.0f with a 1x1 tesselation (2 triangles).
-    optix::Geometry geoPlane = create_plane(1, 1);
+    // Plane
+    {
+      optix::Geometry geoPlane = create_plane(1, 1);
 
-    optix::GeometryInstance giPlane = m_ctx->createGeometryInstance(); // This connects Geometries with Materials.
-    giPlane->setGeometry(geoPlane);
-    giPlane->setMaterialCount(1);
-    giPlane->setMaterial(0, m_opaque_mat);
+      optix::GeometryInstance giPlane = m_ctx->createGeometryInstance(); // This connects Geometries with Materials.
+      giPlane->setGeometry(geoPlane);
+      giPlane->setMaterialCount(1);
+      giPlane->setMaterial(0, m_opaque_mat);
 
-    optix::Acceleration accPlane = m_ctx->createAcceleration(ACC_TYPE);
-    setAccelerationProperties(accPlane);
-    
-    // This connects GeometryInstances with Acceleration structures. (All OptiX nodes with "Group" in the name hold an Acceleration.)
-    optix::GeometryGroup ggPlane = m_ctx->createGeometryGroup();
-    ggPlane->setAcceleration(accPlane);
-    ggPlane->setChildCount(1);
-    ggPlane->setChild(0, giPlane);
+      optix::Acceleration accPlane = m_ctx->createAcceleration(ACC_TYPE);
+      setAccelerationProperties(accPlane);
+      
+      // This connects GeometryInstances with Acceleration structures. (All OptiX nodes with "Group" in the name hold an Acceleration.)
+      optix::GeometryGroup ggPlane = m_ctx->createGeometryGroup();
+      ggPlane->setAcceleration(accPlane);
+      ggPlane->addChild(giPlane);
 
-    // The original object coordinates of the plane have unit size, from -1.0f to 1.0f in x-axis and z-axis.
-    // Scale the plane to go from -5 to 5.
-    float trafoPlane[16] = {
-      10.0f, 0.0f, 0.0f, 0.0f,
-      0.0f, 1.0f, 0.0f, 0.0f,
-      0.0f, 0.0f, 5.0f, 0.0f,
-      0.0f, 0.0f, 0.0f, 1.0f
-    };
-    optix::Matrix4x4 matrixPlane(trafoPlane);
+      // The original object coordinates of the plane have unit size, from -1.0f to 1.0f in x-axis and z-axis.
+      // Scale the plane to go from -5 to 5.
+      float trafoPlane[16] = {
+        10.0f, 0.0f, 0.0f, 0.0f,
+        0.0f, 1.0f, 0.0f, 0.0f,
+        0.0f, 0.0f, 5.0f, 0.0f,
+        0.0f, 0.0f, 0.0f, 1.0f
+      };
+      optix::Matrix4x4 matrixPlane(trafoPlane);
 
-    optix::Transform trPlane = m_ctx->createTransform();
-    trPlane->setChild(ggPlane);
-    trPlane->setMatrix(false, matrixPlane.getData(), matrixPlane.inverse().getData());
-    
-    // Add the transform node placeing the plane to the scene's root Group node.
-    count = m_root_group->getChildCount();
-    m_root_group->setChildCount(count + 1);
-    m_root_group->setChild(count, trPlane);
+      optix::Transform trPlane = m_ctx->createTransform();
+      trPlane->setChild(ggPlane);
+      trPlane->setMatrix(false, matrixPlane.getData(), matrixPlane.inverse().getData());
+      
+      // Add the transform node placeing the plane to the scene's root Group node.
+      m_root_group->addChild(trPlane);
+    }
 
-    // Add a tessellated sphere with 180 longitudes and 90 latitudes (32400 triangles) with radius 1.0f around the origin.
-    // The last argument is the maximum theta angle, which allows to generate spheres with a whole at the top.
-    // (Useful to test thin-walled materials with different materials on the front- and backface.)
-    optix::Geometry geoSphere = create_sphere(180, 90, 0.5f, M_PIf);
+    // Sphere
+    {
+      // Add a tessellated sphere with 180 longitudes and 90 latitudes (32400 triangles) with radius 1.0f around the origin.
+      // The last argument is the maximum theta angle, which allows to generate spheres with a whole at the top.
+      // (Useful to test thin-walled materials with different materials on the front- and backface.)
+      optix::Geometry geoSphere = create_sphere(18, 9, 0.5f, M_PIf);
 
-    optix::Acceleration accSphere = m_ctx->createAcceleration(ACC_TYPE);
-    setAccelerationProperties(accSphere);
-    
-    optix::GeometryInstance giSphere = m_ctx->createGeometryInstance(); // This connects Geometries with Materials.
-    giSphere->setGeometry(geoSphere);
-    giSphere->setMaterialCount(1);
-    giSphere->setMaterial(0, m_opaque_mat);
+      optix::Acceleration accSphere = m_ctx->createAcceleration(ACC_TYPE);
+      setAccelerationProperties(accSphere);
+      
+      optix::GeometryInstance giSphere = m_ctx->createGeometryInstance(); // This connects Geometries with Materials.
+      giSphere->setGeometry(geoSphere);
+      giSphere->setMaterialCount(1);
+      giSphere->setMaterial(0, m_opaque_mat);
 
-    optix::GeometryGroup ggSphere = m_ctx->createGeometryGroup();    // This connects GeometryInstances with Acceleration structures. (All OptiX nodes with "Group" in the name hold an Acceleration.)
-    ggSphere->setAcceleration(accSphere);
-    ggSphere->setChildCount(1);
-    ggSphere->setChild(0, giSphere);
+      optix::GeometryGroup ggSphere = m_ctx->createGeometryGroup();    // This connects GeometryInstances with Acceleration structures. (All OptiX nodes with "Group" in the name hold an Acceleration.)
+      ggSphere->setAcceleration(accSphere);
+      ggSphere->addChild(giSphere);
 
-    float trafoSphere[16] = {
-      1.0f, 0.0f, 0.0f, 0.0f,
-      0.0f, 1.0f, 0.0f, 0.5f, // Translate the sphere by 1.0f on the y-axis to be above the plane, exactly touching.
-      0.0f, 0.0f, 1.0f, 0.0f,
-      0.0f, 0.0f, 0.0f, 1.0f
-    };
-    optix::Matrix4x4 matrixSphere(trafoSphere);
+      float trafoSphere[16] = {
+        1.0f, 0.0f, 0.0f, 0.0f,
+        0.0f, 1.0f, 0.0f, 0.5f, // Translate the sphere by 1.0f on the y-axis to be above the plane, exactly touching.
+        0.0f, 0.0f, 1.0f, 0.0f,
+        0.0f, 0.0f, 0.0f, 1.0f
+      };
+      optix::Matrix4x4 matrixSphere(trafoSphere);
 
-    trSphere = m_ctx->createTransform();
-    trSphere->setChild(ggSphere);
-    trSphere->setMatrix(false, matrixSphere.getData(), matrixSphere.inverse().getData());
+      trSphere = m_ctx->createTransform();
+      trSphere->setChild(ggSphere);
+      trSphere->setMatrix(false, matrixSphere.getData(), matrixSphere.inverse().getData());
 
-    count = m_root_group->getChildCount();
-    m_root_group->setChildCount(count + 1);
-    m_root_group->setChild(count, trSphere);
+      m_root_group->addChild(trSphere);
+    }
+
+    // Paddle
+    {
+      optix::Geometry geometry = create_cuboid(2, 1, 3);
+
+      optix::Acceleration acceleration = m_ctx->createAcceleration(ACC_TYPE);
+      setAccelerationProperties(acceleration);
+
+      optix::GeometryInstance geometry_instance = m_ctx->createGeometryInstance();
+      geometry_instance->setGeometry(geometry);
+      geometry_instance->setMaterialCount(1);
+      geometry_instance->setMaterial(0, m_opaque_mat);
+
+      optix::GeometryGroup geometry_group = m_ctx->createGeometryGroup();
+      geometry_group->setAcceleration(acceleration);
+      geometry_group->addChild(geometry_instance);
+
+      float T[16] = {
+        1.0f, 0.0f, 0.0f, 0.0f,
+        0.0f, 1.0f, 0.0f, 1.5f,
+        0.0f, 0.0f, 1.0f, 0.0f,
+        0.0f, 0.0f, 0.0f, 1.0f
+      };
+      optix::Matrix4x4 M(T);
+
+      optix::Transform transform = m_ctx->createTransform();
+      transform->setChild(geometry_group);
+      transform->setMatrix(false, M.getData(), M.inverse().getData());
+
+      m_root_group->addChild(transform);
+    }
   });
 }
 
