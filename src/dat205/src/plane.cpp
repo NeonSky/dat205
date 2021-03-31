@@ -12,26 +12,26 @@ optix::Geometry Application::create_plane(const int tessU, const int tessV) {
   
   optix::float3 corner;
 
-  std::vector<VertexAttributes> attributes;
+  std::vector<VertexData> vertices;
   
-  VertexAttributes attrib;
+  VertexData v;
 
   // Positive y-axis is the geometry normal, create geometry on the xz-plane.
   corner = optix::make_float3(-1.0f, 0.0f, 1.0f); // left front corner of the plane. texcoord (0.0f, 0.0f).
 
-  attrib.tangent = optix::make_float3(1.0f, 0.0f, 0.0f);
-  attrib.normal = optix::make_float3(0.0f, 1.0f, 0.0f);
+  v.tangent = optix::make_float3(1.0f, 0.0f, 0.0f);
+  v.normal = optix::make_float3(0.0f, 1.0f, 0.0f);
 
   for (int j = 0; j <= tessV; ++j) {
-    const float v = float(j) * vTile;
+    const float tv = float(j) * vTile;
 
     for (int i = 0; i <= tessU; ++i) {
-      const float u = float(i) * uTile;
+      const float tu = float(i) * uTile;
 
-      attrib.vertex = corner + optix::make_float3(u, 0.0f, -v);
-      attrib.texcoord = optix::make_float3(u * 0.5f, v * 0.5f, 0.0f);
+      v.position = corner + optix::make_float3(tu, 0.0f, -tv);
+      v.texcoord = optix::make_float3(tu * 0.5f, tv * 0.5f, 0.0f);
 
-      attributes.push_back(attrib);
+      vertices.push_back(v);
     }
   }
 
@@ -50,7 +50,7 @@ optix::Geometry Application::create_plane(const int tessU, const int tessV) {
     }
   }
 
-  std::cout << "createPlane(): Vertices = " << attributes.size() <<  ", Triangles = " << indices.size() / 3 << std::endl;
+  std::cout << "createPlane(): Vertices = " << vertices.size() <<  ", Triangles = " << indices.size() / 3 << std::endl;
 
-  return create_geometry(attributes, indices);
+  return create_geometry(vertices, indices);
 }

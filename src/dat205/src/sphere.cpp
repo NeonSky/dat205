@@ -7,8 +7,8 @@
 optix::Geometry Application::create_sphere(const int tessU, const int tessV, const float radius, const float maxTheta) {
   assert(3 <= tessU && 3 <= tessV);
 
-  std::vector<VertexAttributes> attributes;
-  attributes.reserve((tessU + 1) * tessV);
+  std::vector<VertexData> vertices;
+  vertices.reserve((tessU + 1) * tessV);
 
   std::vector<unsigned int> indices;
   indices.reserve(6 * tessU * (tessV - 1));
@@ -42,14 +42,14 @@ optix::Geometry Application::create_sphere(const int tessU, const int tessV, con
       optix::float3 normal = optix::make_float3( cosPhi * sinTheta, 
                                                 -cosTheta,                 // -y to start at the south pole.
                                                 -sinPhi * sinTheta);
-      VertexAttributes attrib;
+      VertexData v;
 
-      attrib.vertex   = normal * radius;
-      attrib.tangent  = optix::make_float3(-sinPhi, 0.0f, -cosPhi);
-      attrib.normal   = normal;
-      attrib.texcoord = optix::make_float3(texu, texv, 0.0f);
+      v.position   = normal * radius;
+      v.tangent  = optix::make_float3(-sinPhi, 0.0f, -cosPhi);
+      v.normal   = normal;
+      v.texcoord = optix::make_float3(texu, texv, 0.0f);
 
-      attributes.push_back(attrib);
+      vertices.push_back(v);
     }
   }
     
@@ -71,7 +71,7 @@ optix::Geometry Application::create_sphere(const int tessU, const int tessV, con
     }
   }
   
-  std::cout << "createSphere(): Vertices = " << attributes.size() <<  ", Triangles = " << indices.size() / 3 << std::endl;
+  std::cout << "createSphere(): Vertices = " << vertices.size() <<  ", Triangles = " << indices.size() / 3 << std::endl;
 
-  return create_geometry(attributes, indices);
+  return create_geometry(vertices, indices);
 }

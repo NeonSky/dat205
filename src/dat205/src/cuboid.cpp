@@ -7,28 +7,28 @@ using namespace optix;
 Geometry Application::create_cuboid(float width, float height, float depth) {
   assert(0 < width && 0 < height && 0 < depth);
 
-  std::vector<VertexAttributes> vertices;
+  std::vector<VertexData> vertices;
 
   // The corner is assumed to be the bot-left corner of the face.
   auto add_face = [&vertices](float3 corner, float3 right, float3 up) {
-    VertexAttributes v;
+    VertexData v;
     v.normal = cross(right, up);
     v.tangent = right;
 
     // Left-bot
-    v.vertex = corner;
+    v.position = corner;
     vertices.push_back(v);
 
     // Right-bot
-    v.vertex = corner + right;
+    v.position = corner + right;
     vertices.push_back(v);
 
     // Left-top
-    v.vertex = corner + up;
+    v.position = corner + up;
     vertices.push_back(v);
 
     // Right-top
-    v.vertex = corner + right + up;
+    v.position = corner + right + up;
     vertices.push_back(v);
   };
 

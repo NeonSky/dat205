@@ -12,8 +12,8 @@ struct PerRayData {
   optix::float3 radiance; // Radiance along the current path segment.
 };
 
-struct VertexAttributes {
-  optix::float3 vertex;
+struct VertexData {
+  optix::float3 position;
   optix::float3 tangent;
   optix::float3 normal;
   optix::float3 texcoord;

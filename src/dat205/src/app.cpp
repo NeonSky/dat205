@@ -9,8 +9,8 @@
 
 void setAccelerationProperties(optix::Acceleration acceleration) {
   // This requires that the position is the first element and it must be float x, y, z.
-  acceleration->setProperty("vertex_buffer_name", "attributesBuffer");
-  assert(sizeof(VertexAttributes) == 48);
+  acceleration->setProperty("vertex_buffer_name", "vertexBuffer");
+  assert(sizeof(VertexData) == 48);
   acceleration->setProperty("vertex_buffer_stride", "48");
 
   acceleration->setProperty("index_buffer_name", "indicesBuffer");
@@ -426,19 +426,19 @@ void Application::update_viewport() {
   }
 }
 
-optix::Geometry Application::create_geometry(std::vector<VertexAttributes> const& attributes, std::vector<unsigned int> const& indices) {
+optix::Geometry Application::create_geometry(std::vector<VertexData> const& attributes, std::vector<unsigned int> const& indices) {
   optix::Geometry geometry(nullptr);
 
   run_unsafe_optix_code([&]() {
     geometry = m_ctx->createGeometry();
 
-    optix::Buffer attributesBuffer = m_ctx->createBuffer(RT_BUFFER_INPUT, RT_FORMAT_USER);
-    attributesBuffer->setElementSize(sizeof(VertexAttributes));
-    attributesBuffer->setSize(attributes.size());
+    optix::Buffer vertexBuffer = m_ctx->createBuffer(RT_BUFFER_INPUT, RT_FORMAT_USER);
+    vertexBuffer->setElementSize(sizeof(VertexData));
+    vertexBuffer->setSize(attributes.size());
 
-    void *dst = attributesBuffer->map(0, RT_BUFFER_MAP_WRITE_DISCARD);
-    memcpy(dst, attributes.data(), sizeof(VertexAttributes) * attributes.size());
-    attributesBuffer->unmap();
+    void *dst = vertexBuffer->map(0, RT_BUFFER_MAP_WRITE_DISCARD);
+    memcpy(dst, attributes.data(), sizeof(VertexData) * attributes.size());
+    vertexBuffer->unmap();
 
     optix::Buffer indicesBuffer = m_ctx->createBuffer(RT_BUFFER_INPUT, RT_FORMAT_UNSIGNED_INT3, indices.size() / 3);
     dst = indicesBuffer->map(0, RT_BUFFER_MAP_WRITE_DISCARD);
@@ -448,7 +448,7 @@ optix::Geometry Application::create_geometry(std::vector<VertexAttributes> const
     geometry->setBoundingBoxProgram(m_boundingbox_triangle_indexed);
     geometry->setIntersectionProgram(m_intersection_triangle_indexed);
 
-    geometry["attributesBuffer"]->setBuffer(attributesBuffer);
+    geometry["vertexBuffer"]->setBuffer(vertexBuffer);
     geometry["indicesBuffer"]->setBuffer(indicesBuffer);
     geometry->setPrimitiveCount((unsigned int)(indices.size()) / 3);
   });

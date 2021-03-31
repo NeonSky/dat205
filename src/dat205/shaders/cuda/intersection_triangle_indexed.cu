@@ -1,7 +1,7 @@
 #include "common.cuh"
 
-rtBuffer<VertexAttributes> attributesBuffer;
-rtBuffer<uint3>            indicesBuffer;
+rtBuffer<VertexData> vertexBuffer;
+rtBuffer<uint3>      indicesBuffer;
 
 // Attributes.
 rtDeclareVariable(optix::float3, varGeoNormal, attribute GEO_NORMAL, );
@@ -15,13 +15,13 @@ rtDeclareVariable(optix::Ray, theRay, rtCurrentRay, );
 RT_PROGRAM void intersection_triangle_indexed(int primitiveIndex) {
   const uint3 indices = indicesBuffer[primitiveIndex];
 
-  VertexAttributes const& a0 = attributesBuffer[indices.x];
-  VertexAttributes const& a1 = attributesBuffer[indices.y];
-  VertexAttributes const& a2 = attributesBuffer[indices.z];
+  VertexData const& a0 = vertexBuffer[indices.x];
+  VertexData const& a1 = vertexBuffer[indices.y];
+  VertexData const& a2 = vertexBuffer[indices.z];
 
-  const float3 v0 = a0.vertex;
-  const float3 v1 = a1.vertex;
-  const float3 v2 = a2.vertex;
+  const float3 v0 = a0.position;
+  const float3 v1 = a1.position;
+  const float3 v2 = a2.position;
 
   float3 n;
   float  t;
