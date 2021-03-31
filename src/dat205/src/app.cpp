@@ -106,15 +106,11 @@ void Application::create_scene() {
     // TODO: Rename this object
     m_ctx["sysTopObject"]->set(m_root_group);
 
-    // Demo code only!
-    // Mind that these local OptiX objects will leak when not cleaning up the scene properly on changes.
-    // Destroying the OptiX context will clean them up at program exit though.
-
     // Plane
     {
       optix::Geometry geoPlane = m_scene->create_plane(1, 1);
 
-      optix::GeometryInstance giPlane = m_ctx->createGeometryInstance(); // This connects Geometries with Materials.
+      optix::GeometryInstance giPlane = m_ctx->createGeometryInstance();
       giPlane->setGeometry(geoPlane);
       giPlane->setMaterialCount(1);
       giPlane->setMaterial(0, m_opaque_mat);
@@ -122,13 +118,10 @@ void Application::create_scene() {
       optix::Acceleration accPlane = m_ctx->createAcceleration(ACC_TYPE);
       set_acceleration_properties(accPlane);
       
-      // This connects GeometryInstances with Acceleration structures. (All OptiX nodes with "Group" in the name hold an Acceleration.)
       optix::GeometryGroup ggPlane = m_ctx->createGeometryGroup();
       ggPlane->setAcceleration(accPlane);
       ggPlane->addChild(giPlane);
 
-      // The original object coordinates of the plane have unit size, from -1.0f to 1.0f in x-axis and z-axis.
-      // Scale the plane to go from -5 to 5.
       float trafoPlane[16] = {
         10.0f, 0.0f, 0.0f, 0.0f,
         0.0f, 1.0f, 0.0f, 0.0f,

@@ -20,7 +20,7 @@ public:
   PongGame(float width, float height);
 
   void create_geometry(OptixScene &scene, optix::Group &parent_group);
-  void update(float dt, float player1_input_dz, float player2_input_dz);
+  void update(float dt, float paddle1_dz, float paddle2_dz);
   void render();
 
 private:
@@ -48,4 +48,8 @@ private:
   optix::Transform m_paddle1_transform;
   optix::Transform m_paddle2_transform;
   optix::Transform m_ball_transform;
+
+  void update_ball(float dt);
+  void update_paddles(float dt, float paddle1_dz, float paddle2_dz);
+
 };
