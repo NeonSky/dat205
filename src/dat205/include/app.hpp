@@ -50,13 +50,18 @@ private:
   float m_ball_x;
   float m_ball_z;
 
+  float m_ball_vx;
+  float m_ball_vz;
+
   void handle_user_input();
   void display();
   void render_gui();
-  void render_scene();
   void update_viewport();
 
   void create_scene();
+  void update_scene();
+  void render_scene();
+
   optix::Geometry create_plane(const int tessU, const int tessV);
   optix::Geometry create_sphere(const int tessU, const int tessV, const float radius, const float maxTheta);
   optix::Geometry create_geometry(std::vector<VertexAttributes> const& attributes, std::vector<unsigned int> const& indices);

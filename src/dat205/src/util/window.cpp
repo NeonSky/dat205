@@ -105,6 +105,9 @@ void open_window(std::string title, unsigned int width, unsigned int height, std
     return;
   }
 
+  // Turn off V-sync for more frames.
+  glfwSwapInterval(0);
+
   // Run user code.
   f(window);
 
