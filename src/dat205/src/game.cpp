@@ -1,5 +1,7 @@
 #include "game.hpp"
 
+#include <random>
+
 using namespace optix;
 
 PongGame::PongGame(float width, float depth)
@@ -8,7 +10,22 @@ PongGame::PongGame(float width, float depth)
         m_paddle_width(0.5f),
         m_paddle_height(0.6f),
         m_paddle_depth(2.0f),
-        m_paddle_x_offset(4.5f) {
+        m_paddle_x_offset(4.5f),
+        m_initial_ball_speed(22.0f) {
+
+  m_player1 = {};
+  m_player2 = {};
+
+  m_ball = {};
+  m_ball.radius = 0.5f;
+
+  std::random_device rd;
+  std::mt19937 rng(rd());
+  std::uniform_real_distribution<> dist(0.0, 2.0 * M_PIf);
+  float init_angle = dist(rng);
+
+  m_ball.vx = m_initial_ball_speed * cos(init_angle);
+  m_ball.vz = m_initial_ball_speed * sin(init_angle);
 
   m_winner = nullptr;
 }
@@ -22,19 +39,15 @@ void PongGame::create_geometry(OptixScene &scene, Group &parent_group) {
   m_ball_material = ctx->createMaterial();
   m_ball_material->setClosestHitProgram(0, ctx->createProgramFromPTXFile(ptxPath("closesthit.cu"), "closesthit"));
 
-  // Create a sared geometry group between all game objects.
-  Acceleration acceleration = ctx->createAcceleration(ACC_TYPE);
-  set_acceleration_properties(acceleration);
-
-  GeometryGroup geometry_group = ctx->createGeometryGroup();
-  geometry_group->setAcceleration(acceleration);
-
   // Create the two paddles.
   {
-    // Let the paddles share geometry.
+    Acceleration acceleration = ctx->createAcceleration(ACC_TYPE);
+    set_acceleration_properties(acceleration);
+
     GeometryGroup geometry_group = ctx->createGeometryGroup();
     geometry_group->setAcceleration(acceleration);
 
+    // Let the paddles also share geometry.
     GeometryInstance geometry_instance = ctx->createGeometryInstance();
     geometry_instance->setMaterialCount(1);
     geometry_instance->setMaterial(0, m_paddle_material);
@@ -58,7 +71,30 @@ void PongGame::create_geometry(OptixScene &scene, Group &parent_group) {
     create_paddle_transform(m_paddle2_transform, 1);
   }
 
-  // Create the ball. TODO
+  // Create the ball.
+  {
+    Acceleration acceleration = ctx->createAcceleration(ACC_TYPE);
+    set_acceleration_properties(acceleration);
+
+    GeometryGroup geometry_group = ctx->createGeometryGroup();
+    geometry_group->setAcceleration(acceleration);
+
+    GeometryInstance geometry_instance = ctx->createGeometryInstance();
+    geometry_instance->setMaterialCount(1);
+    geometry_instance->setMaterial(0, m_ball_material);
+    geometry_group->addChild(geometry_instance);
+
+    Geometry geometry = scene.create_sphere(18, 9, m_ball.radius, M_PIf);
+    geometry_instance->setGeometry(geometry);
+
+    Matrix4x4 M = Matrix<4, 4>::translate(make_float3(0.0f, m_ball.radius, 0.0f));
+
+    m_ball_transform = ctx->createTransform();
+    m_ball_transform->setChild(geometry_group);
+    m_ball_transform->setMatrix(false, M.getData(), M.inverse().getData());
+
+    parent_group->addChild(m_ball_transform);
+  }
 }
 
 void PongGame::update(float dt, float paddle1_dz, float paddle2_dz) {
@@ -66,8 +102,58 @@ void PongGame::update(float dt, float paddle1_dz, float paddle2_dz) {
   float z_max = m_table_depth / 2.0f;
 
   // Paddle 1
-  m_player1.paddle_z = clamp(m_player1.paddle_z + paddle1_dz, z_min, z_max);
+  {
+    m_player1.paddle_z = clamp(m_player1.paddle_z + dt * paddle1_dz, z_min, z_max);
+    Matrix4x4 M = optix::Matrix4x4::translate(make_float3(-m_paddle_x_offset, m_paddle_height, m_player1.paddle_z));
+    m_paddle1_transform->setMatrix(false, M.getData(), M.inverse().getData());
+  }
 
   // Paddle 2
-  m_player2.paddle_z = clamp(m_player2.paddle_z + paddle2_dz, z_min, z_max);
+  {
+    m_player2.paddle_z = clamp(m_player2.paddle_z + dt * paddle2_dz, z_min, z_max);
+    Matrix4x4 M = optix::Matrix4x4::translate(make_float3(m_paddle_x_offset, m_paddle_height, m_player2.paddle_z));
+    m_paddle2_transform->setMatrix(false, M.getData(), M.inverse().getData());
+  }
+  
+  // Ball
+  {
+    // Constraints
+    float x_min = -m_table_width + m_ball.radius;
+    float x_max =  m_table_width - m_ball.radius;
+    float z_min = -m_table_depth + m_ball.radius;
+    float z_max =  m_table_depth - m_ball.radius;
+
+    // Potential future positions
+    float fx = m_ball.x + dt * m_ball.vx;
+    float fz = m_ball.z + dt * m_ball.vz;
+
+    // Update position along x-axis
+    if (fx <= x_min) {
+      m_ball.x = x_min + -(fx - x_min);
+      m_ball.vx = -m_ball.vx;
+    }
+    else if (fx >= x_max) {
+      m_ball.x = x_max - (fx - x_max);
+      m_ball.vx = -m_ball.vx;
+    }
+    else {
+      m_ball.x = fx;
+    }
+
+    // Update position along z-axis
+    if (fz <= z_min) {
+      m_ball.z = z_min + -(fz - z_min);
+      m_ball.vz = -m_ball.vz;
+    }
+    else if (fz >= z_max) {
+      m_ball.z = z_max - (fz - z_max);
+      m_ball.vz = -m_ball.vz;
+    }
+    else {
+      m_ball.z = fz;
+    }
+
+    Matrix4x4 M = optix::Matrix4x4::translate(make_float3(m_ball.x, m_ball.radius, m_ball.z));
+    m_ball_transform->setMatrix(false, M.getData(), M.inverse().getData());
+  }
 }

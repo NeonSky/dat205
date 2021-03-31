@@ -6,6 +6,8 @@ struct Ball {
   float x;
   float z;
   float radius;
+  float vx;
+  float vz;
 };
 
 struct Player {
@@ -31,6 +33,8 @@ private:
   const float m_paddle_depth;
   const float m_paddle_x_offset;
 
+  const float m_initial_ball_speed;
+
   Player *m_winner;
 
   Player m_player1;
@@ -38,9 +42,6 @@ private:
   Ball m_ball;
 
   // View
-  optix::Acceleration m_acceleration;
-  optix::GeometryGroup m_geometry_group;
-
   optix::Material m_paddle_material;
   optix::Material m_ball_material;
 

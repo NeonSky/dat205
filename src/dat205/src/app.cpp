@@ -2,7 +2,6 @@
 
 #include "util/opengl.hpp"
 
-#include <random>
 #include <iostream>
 
 Application::Application(ApplicationCreateInfo create_info) {
@@ -14,19 +13,7 @@ Application::Application(ApplicationCreateInfo create_info) {
   m_show_gui = true;
   m_camera_zoom_speed  = 4.5f;
 
-  m_ball_x = 0;
-  m_ball_z = 0;
   m_game = std::unique_ptr<PongGame>(new PongGame(10.0f, 5.0f));
-
-  std::random_device rd;
-  std::mt19937 rng(rd());
-  std::uniform_real_distribution<> dist(0.0, 2.0 * M_PIf);
-
-  float init_angle = dist(rng);
-  float ball_speed = 20.0f;
-
-  m_ball_vx = ball_speed * cos(init_angle);
-  m_ball_vz = ball_speed * sin(init_angle);
 
   glViewport(0, 0, m_window_width, m_window_height);
   glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
@@ -157,40 +144,6 @@ void Application::create_scene() {
       // Add the transform node placeing the plane to the scene's root Group node.
       m_root_group->addChild(trPlane);
     }
-
-    // Sphere
-    {
-      // Add a tessellated sphere with 180 longitudes and 90 latitudes (32400 triangles) with radius 1.0f around the origin.
-      // The last argument is the maximum theta angle, which allows to generate spheres with a whole at the top.
-      // (Useful to test thin-walled materials with different materials on the front- and backface.)
-      optix::Geometry geoSphere = m_scene->create_sphere(18, 9, 0.5f, M_PIf);
-
-      optix::Acceleration accSphere = m_ctx->createAcceleration(ACC_TYPE);
-      set_acceleration_properties(accSphere);
-      
-      optix::GeometryInstance giSphere = m_ctx->createGeometryInstance(); // This connects Geometries with Materials.
-      giSphere->setGeometry(geoSphere);
-      giSphere->setMaterialCount(1);
-      giSphere->setMaterial(0, m_opaque_mat);
-
-      optix::GeometryGroup ggSphere = m_ctx->createGeometryGroup();    // This connects GeometryInstances with Acceleration structures. (All OptiX nodes with "Group" in the name hold an Acceleration.)
-      ggSphere->setAcceleration(accSphere);
-      ggSphere->addChild(giSphere);
-
-      float trafoSphere[16] = {
-        1.0f, 0.0f, 0.0f, 0.0f,
-        0.0f, 1.0f, 0.0f, 0.5f, // Translate the sphere by 1.0f on the y-axis to be above the plane, exactly touching.
-        0.0f, 0.0f, 1.0f, 0.0f,
-        0.0f, 0.0f, 0.0f, 1.0f
-      };
-      optix::Matrix4x4 matrixSphere(trafoSphere);
-
-      trSphere = m_ctx->createTransform();
-      trSphere->setChild(ggSphere);
-      trSphere->setMatrix(false, matrixSphere.getData(), matrixSphere.inverse().getData());
-
-      m_root_group->addChild(trSphere);
-    }
   });
 }
 
@@ -265,8 +218,8 @@ void Application::render_gui() {
     handle_user_input();
     if (m_show_gui) {
       ImGui::Begin("DAT205");
-      ImGui::DragFloat("Ball x", &m_ball_x, 0.2f, -10.0f, 10.0f, "%.1f");
-      ImGui::DragFloat("Ball z", &m_ball_z, 0.2f, -10.0f, 10.0f, "%.1f");
+      // ImGui::DragFloat("Ball x", &m_ball_x, 0.2f, -10.0f, 10.0f, "%.1f");
+      // ImGui::DragFloat("Ball z", &m_ball_z, 0.2f, -10.0f, 10.0f, "%.1f");
 
       // if (ImGui::ColorEdit3("Background", (float *)&m_bg_color)) {
       //   m_ctx["sysColorBackground"]->setFloat(m_bg_color);
@@ -279,46 +232,8 @@ void Application::render_gui() {
 void Application::update_scene() {
   const float dt = 0.02f;
 
-  float width = 10.0f;
-  float depth = 5.0f;
-  float radius = 0.5f;
+  m_game->update(dt, 0.1f, 0.1f);
 
-  float xmin = -width + radius;
-  float xmax = width - radius;
-  float zmin = -depth + radius;
-  float zmax = depth - radius;
-
-  // Potential future positions
-  float fx = m_ball_x + dt * m_ball_vx;
-  float fz = m_ball_z + dt * m_ball_vz;
-
-  // TODO: Should give a score instead of bouncing for the x direction.
-  if (fx <= xmin) {
-    m_ball_x = xmin + -(fx - xmin);
-    m_ball_vx = -m_ball_vx;
-  }
-  else if (fx >= xmax) {
-    m_ball_x = xmax - (fx - xmax);
-    m_ball_vx = -m_ball_vx;
-  }
-  else {
-    m_ball_x = fx;
-  }
-
-  if (fz <= zmin) {
-    m_ball_z = zmin + -(fz - zmin);
-    m_ball_vz = -m_ball_vz;
-  }
-  else if (fz >= zmax) {
-    m_ball_z = zmax - (fz - zmax);
-    m_ball_vz = -m_ball_vz;
-  }
-  else {
-    m_ball_z = fz;
-  }
-
-  optix::Matrix4x4 m = optix::Matrix4x4::translate(optix::make_float3(m_ball_x, radius, m_ball_z));
-  trSphere->setMatrix(false, m.getData(), m.inverse().getData());
   m_root_acceleration->markDirty();
 }
 

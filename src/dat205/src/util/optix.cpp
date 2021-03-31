@@ -181,11 +181,15 @@ Geometry OptixScene::create_plane(const int tessU, const int tessV) {
     }
   }
 
-  std::cout << "createPlane(): Vertices = " << vertices.size() <<  ", Triangles = " << indices.size() / 3 << std::endl;
+  assert(vertices.size() == (tessU+1) * (tessV+1));
+  assert(indices.size() == 6 * tessU * tessV);
 
   return create_geometry(vertices, indices);
 }
 
+// Creates a tessellated sphere with tessU longitudes and tessV latitudes.
+// The resulting geometry contains tessU * (tessV - 1) * 2 triangles.
+// The last argument is the maximum theta angle, which allows to generate spheres with a whole at the top.
 Geometry OptixScene::create_sphere(const int tessU, const int tessV, const float radius, const float maxTheta) {
   assert(3 <= tessU && 3 <= tessV);
 
@@ -253,7 +257,8 @@ Geometry OptixScene::create_sphere(const int tessU, const int tessV, const float
     }
   }
   
-  std::cout << "createSphere(): Vertices = " << vertices.size() <<  ", Triangles = " << indices.size() / 3 << std::endl;
+  assert(vertices.size() == (tessU + 1) * tessV);
+  assert(indices.size() == 6 * tessU * (tessV - 1));
 
   return create_geometry(vertices, indices);
 }

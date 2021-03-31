@@ -52,14 +52,6 @@ private:
   PinholeCamera m_camera;
   float m_camera_zoom_speed;
 
-  optix::Transform trSphere;
-
-  float m_ball_x;
-  float m_ball_z;
-
-  float m_ball_vx;
-  float m_ball_vz;
-
   void handle_user_input();
   void display();
   void render_gui();
