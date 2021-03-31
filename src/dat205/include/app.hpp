@@ -1,8 +1,11 @@
 #pragma once
 
 #include "camera.hpp"
+#include "game.hpp"
 #include "util/optix.hpp"
 #include "util/window.hpp"
+
+#include <memory>
 
 // Enable the assert() macro.
 #undef NDEBUG
@@ -26,13 +29,13 @@ private:
   unsigned int m_window_height;
   bool m_show_gui;
 
+  std::unique_ptr<PongGame> m_game;
+  std::unique_ptr<OptixScene> m_scene;
+
   optix::Program m_ray_gen_program;
   optix::Program m_exception_program;
   optix::Program m_miss_program;
   optix::Program m_closest_hit_program;
-
-  optix::Program m_boundingbox_triangle_indexed;
-  optix::Program m_intersection_triangle_indexed;
 
   optix::Context m_ctx;
   optix::Buffer m_output_buffer;
@@ -65,11 +68,6 @@ private:
   void create_scene();
   void update_scene();
   void render_scene();
-
-  optix::Geometry create_cuboid(float width, float height, float depth);
-  optix::Geometry create_plane(const int tessU, const int tessV);
-  optix::Geometry create_sphere(const int tessU, const int tessV, const float radius, const float maxTheta);
-  optix::Geometry create_geometry(std::vector<VertexData> const& attributes, std::vector<unsigned int> const& indices);
 
 };
 

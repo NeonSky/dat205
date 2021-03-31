@@ -5,19 +5,6 @@
 #include <random>
 #include <iostream>
 
-#define ACC_TYPE "Trbvh"
-
-void setAccelerationProperties(optix::Acceleration acceleration) {
-  // This requires that the position is the first element and it must be float x, y, z.
-  acceleration->setProperty("vertex_buffer_name", "vertexBuffer");
-  assert(sizeof(VertexData) == 48);
-  acceleration->setProperty("vertex_buffer_stride", "48");
-
-  acceleration->setProperty("index_buffer_name", "indicesBuffer");
-  assert(sizeof(optix::uint3) == 12);
-  acceleration->setProperty("index_buffer_stride", "12");
-}
-
 Application::Application(ApplicationCreateInfo create_info) {
   m_window = create_info.window;
   m_window_width = create_info.window_width;
@@ -29,6 +16,7 @@ Application::Application(ApplicationCreateInfo create_info) {
 
   m_ball_x = 0;
   m_ball_z = 0;
+  m_game = std::unique_ptr<PongGame>(new PongGame(10.0f, 5.0f));
 
   std::random_device rd;
   std::mt19937 rng(rd());
@@ -82,10 +70,6 @@ Application::Application(ApplicationCreateInfo create_info) {
 
     m_miss_program = m_ctx->createProgramFromPTXFile(ptxPath("miss.cu"), "miss_environment_constant");
 
-    // Geometry
-    m_boundingbox_triangle_indexed  = m_ctx->createProgramFromPTXFile(ptxPath("boundingbox_triangle_indexed.cu"),  "boundingbox_triangle_indexed");
-    m_intersection_triangle_indexed = m_ctx->createProgramFromPTXFile(ptxPath("intersection_triangle_indexed.cu"), "intersection_triangle_indexed");
-
     m_closest_hit_program = m_ctx->createProgramFromPTXFile(ptxPath("closesthit.cu"), "closesthit");
   });
 
@@ -115,7 +99,9 @@ Application::Application(ApplicationCreateInfo create_info) {
   m_ctx["sysCameraW"]->setFloat(0.0f, 0.0f, -1.0f);
 
   // Init scene
+  m_scene = std::unique_ptr<OptixScene>(new OptixScene(m_ctx));
   create_scene();
+  m_game->create_geometry(*m_scene, m_root_group);
   m_ctx->validate();
   m_ctx->launch(0, 0, 0); // dummy launch to build everything
 };
@@ -139,7 +125,7 @@ void Application::create_scene() {
 
     // Plane
     {
-      optix::Geometry geoPlane = create_plane(1, 1);
+      optix::Geometry geoPlane = m_scene->create_plane(1, 1);
 
       optix::GeometryInstance giPlane = m_ctx->createGeometryInstance(); // This connects Geometries with Materials.
       giPlane->setGeometry(geoPlane);
@@ -147,7 +133,7 @@ void Application::create_scene() {
       giPlane->setMaterial(0, m_opaque_mat);
 
       optix::Acceleration accPlane = m_ctx->createAcceleration(ACC_TYPE);
-      setAccelerationProperties(accPlane);
+      set_acceleration_properties(accPlane);
       
       // This connects GeometryInstances with Acceleration structures. (All OptiX nodes with "Group" in the name hold an Acceleration.)
       optix::GeometryGroup ggPlane = m_ctx->createGeometryGroup();
@@ -177,10 +163,10 @@ void Application::create_scene() {
       // Add a tessellated sphere with 180 longitudes and 90 latitudes (32400 triangles) with radius 1.0f around the origin.
       // The last argument is the maximum theta angle, which allows to generate spheres with a whole at the top.
       // (Useful to test thin-walled materials with different materials on the front- and backface.)
-      optix::Geometry geoSphere = create_sphere(18, 9, 0.5f, M_PIf);
+      optix::Geometry geoSphere = m_scene->create_sphere(18, 9, 0.5f, M_PIf);
 
       optix::Acceleration accSphere = m_ctx->createAcceleration(ACC_TYPE);
-      setAccelerationProperties(accSphere);
+      set_acceleration_properties(accSphere);
       
       optix::GeometryInstance giSphere = m_ctx->createGeometryInstance(); // This connects Geometries with Materials.
       giSphere->setGeometry(geoSphere);
@@ -204,37 +190,6 @@ void Application::create_scene() {
       trSphere->setMatrix(false, matrixSphere.getData(), matrixSphere.inverse().getData());
 
       m_root_group->addChild(trSphere);
-    }
-
-    // Paddle
-    {
-      optix::Geometry geometry = create_cuboid(2, 1, 3);
-
-      optix::Acceleration acceleration = m_ctx->createAcceleration(ACC_TYPE);
-      setAccelerationProperties(acceleration);
-
-      optix::GeometryInstance geometry_instance = m_ctx->createGeometryInstance();
-      geometry_instance->setGeometry(geometry);
-      geometry_instance->setMaterialCount(1);
-      geometry_instance->setMaterial(0, m_opaque_mat);
-
-      optix::GeometryGroup geometry_group = m_ctx->createGeometryGroup();
-      geometry_group->setAcceleration(acceleration);
-      geometry_group->addChild(geometry_instance);
-
-      float T[16] = {
-        1.0f, 0.0f, 0.0f, 0.0f,
-        0.0f, 1.0f, 0.0f, 1.5f,
-        0.0f, 0.0f, 1.0f, 0.0f,
-        0.0f, 0.0f, 0.0f, 1.0f
-      };
-      optix::Matrix4x4 M(T);
-
-      optix::Transform transform = m_ctx->createTransform();
-      transform->setChild(geometry_group);
-      transform->setMatrix(false, M.getData(), M.inverse().getData());
-
-      m_root_group->addChild(transform);
     }
   });
 }
@@ -424,34 +379,4 @@ void Application::update_viewport() {
 
     m_camera.setViewport(m_window_width, m_window_height);
   }
-}
-
-optix::Geometry Application::create_geometry(std::vector<VertexData> const& attributes, std::vector<unsigned int> const& indices) {
-  optix::Geometry geometry(nullptr);
-
-  run_unsafe_optix_code([&]() {
-    geometry = m_ctx->createGeometry();
-
-    optix::Buffer vertexBuffer = m_ctx->createBuffer(RT_BUFFER_INPUT, RT_FORMAT_USER);
-    vertexBuffer->setElementSize(sizeof(VertexData));
-    vertexBuffer->setSize(attributes.size());
-
-    void *dst = vertexBuffer->map(0, RT_BUFFER_MAP_WRITE_DISCARD);
-    memcpy(dst, attributes.data(), sizeof(VertexData) * attributes.size());
-    vertexBuffer->unmap();
-
-    optix::Buffer indicesBuffer = m_ctx->createBuffer(RT_BUFFER_INPUT, RT_FORMAT_UNSIGNED_INT3, indices.size() / 3);
-    dst = indicesBuffer->map(0, RT_BUFFER_MAP_WRITE_DISCARD);
-    memcpy(dst, indices.data(), sizeof(optix::uint3) * indices.size() / 3);
-    indicesBuffer->unmap();
-
-    geometry->setBoundingBoxProgram(m_boundingbox_triangle_indexed);
-    geometry->setIntersectionProgram(m_intersection_triangle_indexed);
-
-    geometry["vertexBuffer"]->setBuffer(vertexBuffer);
-    geometry["indicesBuffer"]->setBuffer(indicesBuffer);
-    geometry->setPrimitiveCount((unsigned int)(indices.size()) / 3);
-  });
-
-  return geometry;
 }
