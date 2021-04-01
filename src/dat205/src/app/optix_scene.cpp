@@ -7,8 +7,7 @@ void Application::create_scene() {
     m_root_acceleration = m_ctx->createAcceleration(ACC_TYPE);
     m_root_group->setAcceleration(m_root_acceleration);
 
-    // TODO: Rename this object
-    m_ctx["sysTopObject"]->set(m_root_group);
+    m_ctx["root"]->set(m_root_group);
   });
 
   create_background_geometry();
@@ -30,16 +29,19 @@ void Application::render_scene() {
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
   optix::float3 camera_pos;
-  optix::float3 cameraU;
-  optix::float3 cameraV;
-  optix::float3 cameraW;
+  optix::float3 camera_right;
+  optix::float3 camera_up;
+  optix::float3 camera_forward;
 
-  bool cameraChanged = m_camera.getFrustum(camera_pos, cameraU, cameraV, cameraW);
-  if (cameraChanged) {
-    m_ctx["sysCameraPosition"]->setFloat(camera_pos);
-    m_ctx["sysCameraU"]->setFloat(cameraU);
-    m_ctx["sysCameraV"]->setFloat(cameraV);
-    m_ctx["sysCameraW"]->setFloat(cameraW);
+  bool camera_changed = m_camera.getFrustum(camera_pos,
+                                           camera_right,
+                                           camera_up,
+                                           camera_forward);
+  if (camera_changed) {
+    m_ctx["camera_pos"]->setFloat(camera_pos);
+    m_ctx["camera_right"]->setFloat(camera_right);
+    m_ctx["camera_up"]->setFloat(camera_up);
+    m_ctx["camera_forward"]->setFloat(camera_forward);
   }
 
   m_ctx->launch(0, m_window_width, m_window_height);

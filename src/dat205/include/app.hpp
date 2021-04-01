@@ -57,7 +57,7 @@ private:
   float m_player2_velocity;
   bool m_paused;
 
-  // TODO: water simulation
+  // Water Simulation
 
   // OptiX Rendering
   optix::Buffer m_output_buffer;

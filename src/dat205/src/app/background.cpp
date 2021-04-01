@@ -2,7 +2,7 @@
 
 void Application::create_background_geometry() {
   optix::Material mat = m_ctx->createMaterial();
-  mat->setClosestHitProgram(0, m_ctx->createProgramFromPTXFile(ptxPath("closesthit.cu"), "closesthit"));
+  mat->setClosestHitProgram(0, m_ctx->createProgramFromPTXFile(ptxPath("closest_hit.cu"), "closest_hit"));
 
   run_unsafe_optix_code([&]() {
     // Floor

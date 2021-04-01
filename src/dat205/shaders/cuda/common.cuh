@@ -8,7 +8,7 @@
 #include <optixu/optixu_math_namespace.h>
 #include <optixu/optixu_matrix_namespace.h>
 
-struct PerRayData {
+struct RayPayload {
   optix::float3 radiance; // Radiance along the current path segment.
 };
 
@@ -16,5 +16,5 @@ struct VertexData {
   optix::float3 position;
   optix::float3 tangent;
   optix::float3 normal;
-  optix::float3 texcoord;
+  optix::float3 uv;
 };

@@ -50,11 +50,11 @@ void Application::setup_optix_rendering() {
   m_output_buffer->setFormat(RT_FORMAT_FLOAT4); // RGBA32F
   m_output_buffer->setSize(m_window_width, m_window_height);
 
-  m_ctx["sysOutputBuffer"]->set(m_output_buffer);
+  m_ctx["output_buffer"]->set(m_output_buffer);
 
   // Mandatory Shaders
   run_unsafe_optix_code([&]() {
-    m_ray_gen_program = m_ctx->createProgramFromPTXFile(ptxPath("raygen.cu"), "raygeneration");
+    m_ray_gen_program = m_ctx->createProgramFromPTXFile(ptxPath("ray_generation.cu"), "ray_generation");
     m_exception_program = m_ctx->createProgramFromPTXFile(ptxPath("exception.cu"), "exception");
     m_miss_program = m_ctx->createProgramFromPTXFile(ptxPath("miss.cu"), "miss_environment_constant");
   });

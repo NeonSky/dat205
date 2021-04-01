@@ -1,8 +1,7 @@
 #include "common.cuh"
 
-rtDeclareVariable(PerRayData, thePrd, rtPayload, );
-
+rtDeclareVariable(RayPayload, payload, rtPayload, );
 
 RT_PROGRAM void miss_environment_constant() {
-  thePrd.radiance = make_float3(0.0f, 0.0f, 1.0f);
+  payload.radiance = make_float3(0.0f, 0.0f, 1.0f);
 }

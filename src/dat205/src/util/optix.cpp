@@ -22,12 +22,12 @@ void set_acceleration_properties(Acceleration acceleration) {
   // vertex_buffer_name specifies the name of the vertex buffer variable for underlying geometry, containing float3 vertices.
   // vertex_buffer_stride is used to define the offset between two vertices in the buffer, given in bytes.
   // The default stride is zero, which assumes that the vertices are tightly packed.
-  acceleration->setProperty("vertex_buffer_name", "vertexBuffer");
+  acceleration->setProperty("vertex_buffer_name", "vertex_buffer");
   acceleration->setProperty("vertex_buffer_stride", std::to_string(sizeof(VertexData)));
 
   // index_buffer_name specifies the name of the index buffer variable for underlying geometry, if any
   // index_buffer_stride can be used analog to vertex_buffer_stride to describe interleaved arrays.
-  acceleration->setProperty("index_buffer_name", "indicesBuffer");
+  acceleration->setProperty("index_buffer_name", "index_buffer");
   acceleration->setProperty("index_buffer_stride", std::to_string(sizeof(uint3)));
 }
 
@@ -148,7 +148,7 @@ Geometry OptixScene::create_plane(const int tessU, const int tessV) {
   VertexData v;
 
   // Positive y-axis is the geometry normal, create geometry on the xz-plane.
-  corner = make_float3(-1.0f, 0.0f, 1.0f); // left front corner of the plane. texcoord (0.0f, 0.0f).
+  corner = make_float3(-1.0f, 0.0f, 1.0f); // left front corner of the plane. uv (0.0f, 0.0f).
 
   v.tangent = make_float3(1.0f, 0.0f, 0.0f);
   v.normal = make_float3(0.0f, 1.0f, 0.0f);
@@ -160,7 +160,7 @@ Geometry OptixScene::create_plane(const int tessU, const int tessV) {
       const float tu = float(i) * uTile;
 
       v.position = corner + make_float3(tu, 0.0f, -tv);
-      v.texcoord = make_float3(tu * 0.5f, tv * 0.5f, 0.0f);
+      v.uv       = make_float3(tu * 0.5f, tv * 0.5f, 0.0f);
 
       vertices.push_back(v);
     }
@@ -233,7 +233,7 @@ Geometry OptixScene::create_sphere(const int tessU, const int tessV, const float
       v.position = normal * radius;
       v.tangent  = make_float3(-sinPhi, 0.0f, -cosPhi);
       v.normal   = normal;
-      v.texcoord = make_float3(texu, texv, 0.0f);
+      v.uv       = make_float3(texu, texv, 0.0f);
 
       vertices.push_back(v);
     }
@@ -270,25 +270,24 @@ Geometry OptixScene::create_geometry(std::vector<VertexData> const& attributes, 
   run_unsafe_optix_code([&]() {
     geometry = m_ctx->createGeometry();
 
-    Buffer vertexBuffer = m_ctx->createBuffer(RT_BUFFER_INPUT, RT_FORMAT_USER);
-    vertexBuffer->setElementSize(sizeof(VertexData));
-    vertexBuffer->setSize(attributes.size());
+    Buffer vertex_buffer = m_ctx->createBuffer(RT_BUFFER_INPUT, RT_FORMAT_USER);
+    vertex_buffer->setElementSize(sizeof(VertexData));
+    vertex_buffer->setSize(attributes.size());
 
-    void *dst = vertexBuffer->map(0, RT_BUFFER_MAP_WRITE_DISCARD);
+    void *dst = vertex_buffer->map(0, RT_BUFFER_MAP_WRITE_DISCARD);
     memcpy(dst, attributes.data(), sizeof(VertexData) * attributes.size());
-    vertexBuffer->unmap();
+    vertex_buffer->unmap();
 
-    Buffer indicesBuffer = m_ctx->createBuffer(RT_BUFFER_INPUT, RT_FORMAT_UNSIGNED_INT3, indices.size() / 3);
-    dst = indicesBuffer->map(0, RT_BUFFER_MAP_WRITE_DISCARD);
+    Buffer index_buffer = m_ctx->createBuffer(RT_BUFFER_INPUT, RT_FORMAT_UNSIGNED_INT3, indices.size() / 3);
+    dst = index_buffer->map(0, RT_BUFFER_MAP_WRITE_DISCARD);
     memcpy(dst, indices.data(), sizeof(uint3) * indices.size() / 3);
-    indicesBuffer->unmap();
+    index_buffer->unmap();
 
     geometry->setBoundingBoxProgram(m_boundingbox_triangle_indexed);
     geometry->setIntersectionProgram(m_intersection_triangle_indexed);
 
-    // TODO: rename to vertex_buffer and index_buffer
-    geometry["vertexBuffer"]->setBuffer(vertexBuffer);
-    geometry["indicesBuffer"]->setBuffer(indicesBuffer);
+    geometry["vertex_buffer"]->setBuffer(vertex_buffer);
+    geometry["index_buffer"]->setBuffer(index_buffer);
     geometry->setPrimitiveCount((unsigned int)(indices.size()) / 3);
   });
 

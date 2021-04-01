@@ -22,10 +22,10 @@ void PongGame::create_geometry(OptixScene &scene, Group &parent_group) {
   Context& ctx = scene.context();
 
   m_paddle_material = ctx->createMaterial();
-  m_paddle_material->setClosestHitProgram(0, ctx->createProgramFromPTXFile(ptxPath("closesthit.cu"), "closesthit"));
+  m_paddle_material->setClosestHitProgram(0, ctx->createProgramFromPTXFile(ptxPath("closest_hit.cu"), "closest_hit"));
 
   m_ball_material = ctx->createMaterial();
-  m_ball_material->setClosestHitProgram(0, ctx->createProgramFromPTXFile(ptxPath("closesthit.cu"), "closesthit"));
+  m_ball_material->setClosestHitProgram(0, ctx->createProgramFromPTXFile(ptxPath("closest_hit.cu"), "closest_hit"));
 
   // Create the two paddles.
   {
