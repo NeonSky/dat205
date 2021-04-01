@@ -11,8 +11,8 @@ PongGame::PongGame(float width, float depth)
         m_paddle_height(0.6f),
         m_paddle_depth(2.0f),
         m_paddle_x_offset(7.5f),
-        m_paddle_speed(16.0f),
-        m_initial_ball_speed(15.0f),
+        m_paddle_speed(12.0f),
+        m_initial_ball_speed(10.0f),
         m_score_to_win(3) {
 
   reset();
@@ -207,8 +207,6 @@ int PongGame::winner() {
   return 0;
 }
 
-#include <iostream>
-
 void PongGame::reset_ball() {
   m_ball = {};
   m_ball.radius = 0.5f;
@@ -218,8 +216,8 @@ void PongGame::reset_ball() {
   static std::uniform_real_distribution<> dist(-M_PIf / 4.0f,  M_PIf / 4.0f);
 
   int dir = 2*(rng() % 2) - 1;
-  float init_angle = dir * dist(rng);
+  float init_angle = dist(rng);
 
-  m_ball.vx = m_initial_ball_speed * cos(init_angle);
+  m_ball.vx = m_initial_ball_speed * cos(init_angle) * dir;
   m_ball.vz = m_initial_ball_speed * sin(init_angle);
 }
