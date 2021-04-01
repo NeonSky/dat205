@@ -23,6 +23,11 @@ public:
   void update(float dt, float paddle1_dz, float paddle2_dz);
   void render();
 
+  void reset();
+  int player1_score();
+  int player2_score();
+  int winner();
+
 private:
   // Model
   const float m_table_width;
@@ -36,7 +41,7 @@ private:
   const float m_paddle_speed;
   const float m_initial_ball_speed;
 
-  Player *m_winner;
+  const int m_score_to_win;
 
   Player m_player1;
   Player m_player2;
@@ -52,5 +57,7 @@ private:
 
   void update_ball(float dt);
   void update_paddles(float dt, float paddle1_dz, float paddle2_dz);
+
+  void reset_ball();
 
 };

@@ -56,7 +56,7 @@ private:
   float m_player1_velocity;
   float m_player2_velocity;
 
-  void handle_user_input();
+  void handle_mouse_input();
   void handle_keyboard_input(GLFWwindow* window, int key, int scancode, int action, int mods);
   void display();
   void render_gui();

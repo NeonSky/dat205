@@ -11,24 +11,11 @@ PongGame::PongGame(float width, float depth)
         m_paddle_height(0.6f),
         m_paddle_depth(2.0f),
         m_paddle_x_offset(7.5f),
-        m_paddle_speed(20.0f),
-        m_initial_ball_speed(20.0f) {
+        m_paddle_speed(16.0f),
+        m_initial_ball_speed(15.0f),
+        m_score_to_win(3) {
 
-  m_player1 = {};
-  m_player2 = {};
-
-  m_ball = {};
-  m_ball.radius = 0.5f;
-
-  std::random_device rd;
-  std::mt19937 rng(rd());
-  std::uniform_real_distribution<> dist(0.0, 2.0 * M_PIf);
-  float init_angle = dist(rng);
-
-  m_ball.vx = m_initial_ball_speed * cos(init_angle);
-  m_ball.vz = m_initial_ball_speed * sin(init_angle);
-
-  m_winner = nullptr;
+  reset();
 }
 
 void PongGame::create_geometry(OptixScene &scene, Group &parent_group) {
@@ -99,6 +86,11 @@ void PongGame::create_geometry(OptixScene &scene, Group &parent_group) {
 }
 
 void PongGame::update(float dt, float paddle1_dz, float paddle2_dz) {
+  // Nothing to update if we already have a winner.
+  if (winner() != 0) {
+    return;
+  }
+
   update_paddles(dt, m_paddle_speed * paddle1_dz, m_paddle_speed * paddle2_dz);
   update_ball(dt);
 }
@@ -115,18 +107,18 @@ void PongGame::update_ball(float dt) {
     float fz = m_ball.z + dt * m_ball.vz;
 
     // Update position along x-axis.
-    // TODO: Give points instead and reset
     if (fx <= x_min) {
-      m_ball.x = x_min + -(fx - x_min);
-      m_ball.vx = -m_ball.vx;
+      m_player2.score++;
+      reset_ball();
+      return;
     }
     else if (fx >= x_max) {
-      m_ball.x = x_max - (fx - x_max);
-      m_ball.vx = -m_ball.vx;
+      m_player1.score++;
+      reset_ball();
+      return;
     }
-    else {
-      m_ball.x = fx;
-    }
+
+    m_ball.x = fx;
 
     // Update position along z-axis.
     if (fz <= z_min) {
@@ -151,9 +143,10 @@ void PongGame::update_ball(float dt) {
         m_ball.vx = dir * abs(m_ball.vx);
 
         // Slightly disturb the ball's direction to spice up the gameplay.
-        std::random_device rd;
-        std::mt19937 rng(rd());
-        std::uniform_real_distribution<> dist(-0.5, 0.5);
+        static std::random_device rd;
+        static std::mt19937 rng(rd());
+        static std::uniform_real_distribution<> dist(-0.5, 0.5);
+
         float vz_disturbance = dist(rng);
         m_ball.vz += m_initial_ball_speed * vz_disturbance;
 
@@ -187,4 +180,46 @@ void PongGame::update_paddles(float dt, float paddle1_dz, float paddle2_dz) {
     Matrix4x4 M = optix::Matrix4x4::translate(make_float3(m_paddle_x_offset, m_paddle_height, m_player2.paddle_z));
     m_paddle2_transform->setMatrix(false, M.getData(), M.inverse().getData());
   }
+}
+
+void PongGame::reset() {
+  m_player1 = {};
+  m_player2 = {};
+
+  reset_ball();
+}
+
+int PongGame::player1_score() {
+  return m_player1.score;
+}
+
+int PongGame::player2_score() {
+  return m_player2.score;
+}
+
+int PongGame::winner() {
+  if (m_player1.score >= m_score_to_win) {
+    return 1;
+  }
+  if (m_player2.score >= m_score_to_win) {
+    return 2;
+  }
+  return 0;
+}
+
+#include <iostream>
+
+void PongGame::reset_ball() {
+  m_ball = {};
+  m_ball.radius = 0.5f;
+
+  static std::random_device rd;
+  static std::mt19937 rng(rd());
+  static std::uniform_real_distribution<> dist(-M_PIf / 4.0f,  M_PIf / 4.0f);
+
+  int dir = 2*(rng() % 2) - 1;
+  float init_angle = dir * dist(rng);
+
+  m_ball.vx = m_initial_ball_speed * cos(init_angle);
+  m_ball.vz = m_initial_ball_speed * sin(init_angle);
 }

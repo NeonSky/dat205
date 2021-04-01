@@ -9,9 +9,10 @@ Application::Application(ApplicationCreateInfo create_info) {
   m_window_width = create_info.window_width;
   m_window_height = create_info.window_height;
   m_camera.setViewport(m_window_width, m_window_height);
+  m_camera.m_fov = 80.0f;
 
   m_show_gui = true;
-  m_paused = false;
+  m_paused = true;
   m_camera_zoom_speed  = 4.5f;
 
   m_game = std::unique_ptr<PongGame>(new PongGame(10.0f, 5.0f));
@@ -166,17 +167,8 @@ void Application::run() {
   m_ctx->destroy();
 }
 
-void Application::handle_user_input() {
+void Application::handle_mouse_input() {
   ImGuiIO const& io = ImGui::GetIO();
-
-  // Toggle GUI visibility with keyboard button.
-  if (ImGui::IsKeyPressed('G', false)) {
-    m_show_gui = !m_show_gui;
-  }
-
-  if (ImGui::IsKeyPressed(' ', false)) {
-    m_paused = !m_paused;
-  }
 
   const ImVec2 mousePosition = ImGui::GetMousePos(); // Mouse coordinate window client rect.
   const int x = int(mousePosition.x);
@@ -220,15 +212,23 @@ void Application::display() {
 
 void Application::render_gui() {
   render_gui_frame([&]() {
-    handle_user_input();
+    handle_mouse_input();
     if (m_show_gui) {
       ImGui::Begin("DAT205");
-      // ImGui::DragFloat("Ball x", &m_ball_x, 0.2f, -10.0f, 10.0f, "%.1f");
-      // ImGui::DragFloat("Ball z", &m_ball_z, 0.2f, -10.0f, 10.0f, "%.1f");
 
-      // if (ImGui::ColorEdit3("Background", (float *)&m_bg_color)) {
-      //   m_ctx["sysColorBackground"]->setFloat(m_bg_color);
-      // }
+      {
+        ImGui::Begin("Game");
+        if (m_game->winner() == 0) {
+          ImGui::Text("Player 1 points: %d", m_game->player1_score());
+          ImGui::Text("Player 2 points: %d", m_game->player2_score());
+        } else {
+          ImGui::Text("Winner is player %d", m_game->winner());
+          if (ImGui::Button("Reset Game")) {
+            m_game->reset();
+          }
+        }
+        ImGui::End();
+      }
       ImGui::End();
     }
   });
@@ -270,6 +270,14 @@ void Application::handle_keyboard_input(GLFWwindow* window, int key, int scancod
     m_player2_velocity = 1.0f;
   } else {
     m_player2_velocity = 0.0f;
+  }
+
+  if (key == GLFW_KEY_G && action == GLFW_PRESS) {
+    m_show_gui = !m_show_gui;
+  }
+
+  if (key == GLFW_KEY_SPACE && action == GLFW_PRESS) {
+    m_paused = !m_paused;
   }
 }
 
