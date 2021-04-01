@@ -1,11 +1,11 @@
 #version 330
 
-layout(location = 0) in vec4 attrPosition;
-layout(location = 8) in vec2 attrTexCoord0;
+layout(location = 0) in vec4 vert_pos;
+layout(location = 8) in vec2 vert_uv;
 
-out vec2 varTexCoord0;
+out vec2 frag_uv;
 
 void main() {
-  gl_Position  = attrPosition;
-  varTexCoord0 = attrTexCoord0;
+  gl_Position = vert_pos;
+  frag_uv     = vert_uv;
 }

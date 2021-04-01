@@ -1,11 +1,11 @@
 #version 330
 
-uniform sampler2D samplerHDR;
+uniform sampler2D tex_sampler;
 
-in vec2 varTexCoord0;
+in vec2 frag_uv;
 
-layout(location = 0, index = 0) out vec4 outColor;
+layout(location = 0, index = 0) out vec4 out_color;
 
 void main() {
-  outColor = texture(samplerHDR, varTexCoord0);
+  out_color = texture(tex_sampler, frag_uv);
 }

@@ -39,9 +39,9 @@ Application::Application(ApplicationCreateInfo create_info) {
 
   m_output_program = create_program("output.vert", "output.frag");
 
-  // Associate the sampler with texture image unit 0
+  // Bind the sampler to texture image unit 0
   use_program(m_output_program, [&]() {
-    glUniform1i(glGetUniformLocation(m_output_program, "samplerHDR"), 0); // texture image unit 0
+    glUniform1i(glGetUniformLocation(m_output_program, "tex_sampler"), 0);
   });
 
   // Init OptiX
@@ -51,16 +51,6 @@ Application::Application(ApplicationCreateInfo create_info) {
   for (size_t i = 0; i < devices.size(); ++i) {
     std::cout << "Using local device " << devices[i] << ": " << m_ctx->getDeviceName(devices[i]) << std::endl;
   }
-
-  // Init Programs
-  run_unsafe_optix_code([&]() {
-    m_ray_gen_program = m_ctx->createProgramFromPTXFile(ptxPath("raygen.cu"), "raygeneration");
-    m_exception_program = m_ctx->createProgramFromPTXFile(ptxPath("exception.cu"), "exception");
-
-    m_miss_program = m_ctx->createProgramFromPTXFile(ptxPath("miss.cu"), "miss_environment_constant");
-
-    m_closest_hit_program = m_ctx->createProgramFromPTXFile(ptxPath("closesthit.cu"), "closesthit");
-  });
 
   // Init renderer
   m_ctx->setEntryPointCount(1); // 0 = render
@@ -77,20 +67,23 @@ Application::Application(ApplicationCreateInfo create_info) {
 
   m_ctx["sysOutputBuffer"]->set(m_output_buffer);
 
+  // Init Programs
+  run_unsafe_optix_code([&]() {
+    m_ray_gen_program = m_ctx->createProgramFromPTXFile(ptxPath("raygen.cu"), "raygeneration");
+    m_exception_program = m_ctx->createProgramFromPTXFile(ptxPath("exception.cu"), "exception");
+
+    m_miss_program = m_ctx->createProgramFromPTXFile(ptxPath("miss.cu"), "miss_environment_constant");
+
+    m_closest_hit_program = m_ctx->createProgramFromPTXFile(ptxPath("closesthit.cu"), "closesthit");
+  });
+
   m_ctx->setRayGenerationProgram(0, m_ray_gen_program);
   m_ctx->setExceptionProgram(0, m_exception_program);
   m_ctx->setMissProgram(0, m_miss_program);
 
-  // Default initialization. Will be overwritten on the first frame.
-  m_ctx["sysCameraPosition"]->setFloat(0.0f, 0.0f, 1.0f);
-  m_ctx["sysCameraU"]->setFloat(1.0f, 0.0f, 0.0f);
-  m_ctx["sysCameraV"]->setFloat(0.0f, 1.0f, 0.0f);
-  m_ctx["sysCameraW"]->setFloat(0.0f, 0.0f, -1.0f);
-
   // Init scene
   m_scene = std::unique_ptr<OptixScene>(new OptixScene(m_ctx));
   create_scene();
-  m_game->create_geometry(*m_scene, m_root_group);
   m_ctx->validate();
   m_ctx->launch(0, 0, 0); // dummy launch to build everything
 
@@ -104,8 +97,8 @@ Application::Application(ApplicationCreateInfo create_info) {
 
 void Application::create_scene() {
   run_unsafe_optix_code([&]() {
-    m_opaque_mat = m_ctx->createMaterial();
-    m_opaque_mat->setClosestHitProgram(0, m_closest_hit_program);
+    optix::Material mat = m_ctx->createMaterial();
+    mat->setClosestHitProgram(0, m_closest_hit_program);
 
     m_root_group = m_ctx->createGroup();
 
@@ -115,14 +108,14 @@ void Application::create_scene() {
     // TODO: Rename this object
     m_ctx["sysTopObject"]->set(m_root_group);
 
-    // Plane
+    // Floor
     {
       optix::Geometry geoPlane = m_scene->create_plane(1, 1);
 
       optix::GeometryInstance giPlane = m_ctx->createGeometryInstance();
       giPlane->setGeometry(geoPlane);
       giPlane->setMaterialCount(1);
-      giPlane->setMaterial(0, m_opaque_mat);
+      giPlane->setMaterial(0, mat);
 
       optix::Acceleration accPlane = m_ctx->createAcceleration(ACC_TYPE);
       set_acceleration_properties(accPlane);
@@ -147,17 +140,20 @@ void Application::create_scene() {
       m_root_group->addChild(trPlane);
     }
   });
+
+  m_game->create_geometry(*m_scene, m_root_group);
 }
 
 void Application::run() {
   while (!glfwWindowShouldClose(m_window)) {
+    glfwPollEvents();
+    handle_mouse_input();
 
     // Adjust viewport to (potentially new) window dimensions.
     update_viewport();
 
     update_scene();
 
-    glfwPollEvents();
     render_scene();
     render_gui();
 
@@ -212,7 +208,6 @@ void Application::display() {
 
 void Application::render_gui() {
   render_gui_frame([&]() {
-    handle_mouse_input();
     if (m_show_gui) {
       ImGui::Begin("DAT205");
 
