@@ -28,6 +28,7 @@ private:
   unsigned int m_window_width;
   unsigned int m_window_height;
   bool m_show_gui;
+  bool m_paused;
 
   std::unique_ptr<PongGame> m_game;
   std::unique_ptr<OptixScene> m_scene;
@@ -52,7 +53,11 @@ private:
   PinholeCamera m_camera;
   float m_camera_zoom_speed;
 
+  float m_player1_velocity;
+  float m_player2_velocity;
+
   void handle_user_input();
+  void handle_keyboard_input(GLFWwindow* window, int key, int scancode, int action, int mods);
   void display();
   void render_gui();
   void update_viewport();

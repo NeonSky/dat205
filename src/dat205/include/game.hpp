@@ -33,6 +33,7 @@ private:
   const float m_paddle_depth;
   const float m_paddle_x_offset;
 
+  const float m_paddle_speed;
   const float m_initial_ball_speed;
 
   Player *m_winner;

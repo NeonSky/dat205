@@ -11,6 +11,7 @@ Application::Application(ApplicationCreateInfo create_info) {
   m_camera.setViewport(m_window_width, m_window_height);
 
   m_show_gui = true;
+  m_paused = false;
   m_camera_zoom_speed  = 4.5f;
 
   m_game = std::unique_ptr<PongGame>(new PongGame(10.0f, 5.0f));
@@ -91,6 +92,13 @@ Application::Application(ApplicationCreateInfo create_info) {
   m_game->create_geometry(*m_scene, m_root_group);
   m_ctx->validate();
   m_ctx->launch(0, 0, 0); // dummy launch to build everything
+
+  // User input
+  glfwSetWindowUserPointer(m_window, reinterpret_cast<void*>(this));
+  glfwSetKeyCallback(m_window, [](GLFWwindow* window, int key, int scancode, int action, int mods) {
+    auto* app = reinterpret_cast<Application*>(glfwGetWindowUserPointer(window));
+    app->handle_keyboard_input(window, key, scancode, action, mods);
+  });
 };
 
 void Application::create_scene() {
@@ -148,6 +156,7 @@ void Application::run() {
 
     update_scene();
 
+    glfwPollEvents();
     render_scene();
     render_gui();
 
@@ -158,12 +167,15 @@ void Application::run() {
 }
 
 void Application::handle_user_input() {
-  glfwPollEvents();
   ImGuiIO const& io = ImGui::GetIO();
 
   // Toggle GUI visibility with keyboard button.
   if (ImGui::IsKeyPressed('G', false)) {
     m_show_gui = !m_show_gui;
+  }
+
+  if (ImGui::IsKeyPressed(' ', false)) {
+    m_paused = !m_paused;
   }
 
   const ImVec2 mousePosition = ImGui::GetMousePos(); // Mouse coordinate window client rect.
@@ -222,10 +234,52 @@ void Application::render_gui() {
   });
 }
 
-void Application::update_scene() {
-  const float dt = 0.02f;
+void Application::handle_keyboard_input(GLFWwindow* window, int key, int scancode, int action, int mods) {
+  // NOTE: this setup is awkward but reduces input lag
+  static bool d_down = false;
+  static bool f_down = false;
+  static bool j_down = false;
+  static bool k_down = false;
 
-  m_game->update(dt, 0.1f, 0.1f);
+  auto update_key_state = [&](bool& is_down, int k) {
+    if (key == k) {
+      if (action == GLFW_PRESS) {
+        is_down = true;
+      } else if(action == GLFW_RELEASE) {
+        is_down = false;
+      }
+    }
+  };
+
+  update_key_state(d_down, GLFW_KEY_D);
+  update_key_state(f_down, GLFW_KEY_F);
+  update_key_state(j_down, GLFW_KEY_J);
+  update_key_state(k_down, GLFW_KEY_K);
+
+  if (d_down) {
+    m_player1_velocity = -1.0f;
+  } else if (f_down) {
+    m_player1_velocity = 1.0f;
+  } else {
+    m_player1_velocity = 0.0f;
+  }
+
+  if (k_down) {
+    m_player2_velocity = -1.0f;
+  } else if (j_down) {
+    m_player2_velocity = 1.0f;
+  } else {
+    m_player2_velocity = 0.0f;
+  }
+}
+
+void Application::update_scene() {
+  if (m_paused) {
+    return;
+  }
+
+  const float dt = 0.02f;
+  m_game->update(dt, m_player1_velocity, m_player2_velocity);
 
   m_root_acceleration->markDirty();
 }

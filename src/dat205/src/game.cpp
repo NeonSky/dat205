@@ -10,8 +10,9 @@ PongGame::PongGame(float width, float depth)
         m_paddle_width(0.5f),
         m_paddle_height(0.6f),
         m_paddle_depth(2.0f),
-        m_paddle_x_offset(6.0f),
-        m_initial_ball_speed(24.0f) {
+        m_paddle_x_offset(7.5f),
+        m_paddle_speed(20.0f),
+        m_initial_ball_speed(20.0f) {
 
   m_player1 = {};
   m_player2 = {};
@@ -98,7 +99,7 @@ void PongGame::create_geometry(OptixScene &scene, Group &parent_group) {
 }
 
 void PongGame::update(float dt, float paddle1_dz, float paddle2_dz) {
-  update_paddles(dt, paddle1_dz, paddle2_dz);
+  update_paddles(dt, m_paddle_speed * paddle1_dz, m_paddle_speed * paddle2_dz);
   update_ball(dt);
 }
 
@@ -114,6 +115,7 @@ void PongGame::update_ball(float dt) {
     float fz = m_ball.z + dt * m_ball.vz;
 
     // Update position along x-axis.
+    // TODO: Give points instead and reset
     if (fx <= x_min) {
       m_ball.x = x_min + -(fx - x_min);
       m_ball.vx = -m_ball.vx;
@@ -142,14 +144,22 @@ void PongGame::update_ball(float dt) {
     // Bounce against paddles if intersection occurs.
     // We'll give the ball a square collision box for simplicity.
     auto check_paddle_collision = [&](float paddle_x, float paddle_z, float dir) {
-      float2 b = make_float2(m_ball.x, m_ball.z);
-      float2 p = make_float2(paddle_x, paddle_z);
-
       bool x_close = abs(m_ball.x - paddle_x) < m_ball.radius + m_paddle_width / 2.0f;
       bool z_close = abs(m_ball.z - paddle_z) < m_ball.radius + m_paddle_depth / 2.0f;
 
       if (x_close && z_close) {
         m_ball.vx = dir * abs(m_ball.vx);
+
+        // Slightly disturb the ball's direction to spice up the gameplay.
+        std::random_device rd;
+        std::mt19937 rng(rd());
+        std::uniform_real_distribution<> dist(-0.5, 0.5);
+        float vz_disturbance = dist(rng);
+        m_ball.vz += m_initial_ball_speed * vz_disturbance;
+
+        float2 vel = m_initial_ball_speed * normalize(make_float2(m_ball.vx, m_ball.vz));
+        m_ball.vx = vel.x;
+        m_ball.vz = vel.y;
       }
     };
 
@@ -161,8 +171,8 @@ void PongGame::update_ball(float dt) {
 }
 
 void PongGame::update_paddles(float dt, float paddle1_dz, float paddle2_dz) {
-  float z_min = -m_table_depth / 2.0f;
-  float z_max = m_table_depth / 2.0f;
+  float z_min = -m_table_depth + m_paddle_depth / 2.0f;
+  float z_max = m_table_depth - m_paddle_depth / 2.0f;
 
   // Paddle 1
   {
