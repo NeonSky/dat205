@@ -1,7 +1,9 @@
 #include "common.cuh"
 
-rtBuffer<float4, 2> output_buffer; // RGBA32F
+// The 2D color (RGBA32F) buffer we will render our result to.
+rtBuffer<float4, 2> output_buffer;
 
+// Current pixel index.
 rtDeclareVariable(uint2, launch_index, rtLaunchIndex, );
 
 RT_PROGRAM void exception() {
@@ -13,6 +15,6 @@ RT_PROGRAM void exception() {
     rtPrintf("Exception code 0x%X at (%d, %d)\n", err_code, launch_index.x, launch_index.y);
   }
 
-  // RGBA32F super magenta as error color (makes sure this isn't accumulated away in a progressive renderer).
+  // Write a very bright magenta as error color (makes sure that the error color is not accumulated away in a progressive renderer).
   output_buffer[launch_index] = make_float4(1000000.0f, 0.0f, 1000000.0f, 1.0f);
 }
