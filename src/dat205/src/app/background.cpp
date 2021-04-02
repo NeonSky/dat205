@@ -1,23 +1,29 @@
 #include "app.hpp"
 
+using namespace optix;
+
 void Application::create_background_geometry() {
-  optix::Material mat = m_ctx->createMaterial();
+  std::string env_map_path = std::string(sutil::samplesDir()) + "/data/chinese_garden_2k.hdr";
+  float3 default_color = make_float3(1.0f, 1.0f, 1.0f);
+  m_ctx["env_map"]->setTextureSampler(sutil::loadTexture(m_ctx, env_map_path, default_color));
+
+  Material mat = m_ctx->createMaterial();
   mat->setClosestHitProgram(0, m_ctx->createProgramFromPTXFile(ptxPath("closest_hit.cu"), "closest_hit"));
 
   run_unsafe_optix_code([&]() {
     // Floor
     {
-      optix::Geometry geometry = m_scene->create_plane(1, 1);
+      Geometry geometry = m_scene->create_plane(1, 1);
 
-      optix::GeometryInstance geometry_instance = m_ctx->createGeometryInstance();
+      GeometryInstance geometry_instance = m_ctx->createGeometryInstance();
       geometry_instance->setGeometry(geometry);
       geometry_instance->setMaterialCount(1);
       geometry_instance->setMaterial(0, mat);
 
-      optix::Acceleration acceleration = m_ctx->createAcceleration(ACC_TYPE);
+      Acceleration acceleration = m_ctx->createAcceleration(ACC_TYPE);
       set_acceleration_properties(acceleration);
       
-      optix::GeometryGroup geometry_group = m_ctx->createGeometryGroup();
+      GeometryGroup geometry_group = m_ctx->createGeometryGroup();
       geometry_group->setAcceleration(acceleration);
       geometry_group->addChild(geometry_instance);
 
@@ -27,9 +33,9 @@ void Application::create_background_geometry() {
         0.0f, 0.0f, 5.0f, 0.0f,
         0.0f, 0.0f, 0.0f, 1.0f
       };
-      optix::Matrix4x4 M(T);
+      Matrix4x4 M(T);
 
-      optix::Transform t = m_ctx->createTransform();
+      Transform t = m_ctx->createTransform();
       t->setChild(geometry_group);
       t->setMatrix(false, M.getData(), M.inverse().getData());
       
