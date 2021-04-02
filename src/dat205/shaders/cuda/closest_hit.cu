@@ -17,6 +17,7 @@ rtBuffer<PointLight> lights;
 // Properties of the hit surface's material.
 rtDeclareVariable(float3, mat_ambient_coefficient, , );
 rtDeclareVariable(float3, mat_diffuse_coefficient, , );
+rtDeclareVariable(float3, mat_specular_coefficient, , );
 
 // Attributes from intersection test.
 rtDeclareVariable(optix::float3, attr_geo_normal, attribute GEO_NORMAL, );
@@ -48,6 +49,14 @@ RT_PROGRAM void closest_hit() {
     float n_dot_l = optix::dot(normal, light_vec);
     if (0 < n_dot_l) {
       color += mat_diffuse_coefficient * n_dot_l * light.color;
+
+      // Phong highlight
+      float3 halfway_vec = optix::normalize((-ray.direction) + light_vec);
+      float n_dot_h = optix::dot(normal, halfway_vec);
+      if (0 < n_dot_h) {
+        float highlight_sharpness = 88.0f;
+        color += mat_specular_coefficient * light.color * pow(n_dot_h, highlight_sharpness);
+      }
     }
   }
 
