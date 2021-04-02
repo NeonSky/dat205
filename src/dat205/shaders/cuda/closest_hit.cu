@@ -18,7 +18,7 @@ rtBuffer<PointLight> lights;
 rtDeclareVariable(float3, mat_ambient_coefficient , , );
 rtDeclareVariable(float3, mat_diffuse_coefficient , , );
 rtDeclareVariable(float3, mat_specular_coefficient, , );
-rtDeclareVariable(float3, mat_reflectivity        , , );
+rtDeclareVariable(float, mat_fresnel              , , );
 
 // Attributes from intersection test.
 rtDeclareVariable(optix::float3, attr_geo_normal, attribute GEO_NORMAL, );
@@ -78,15 +78,22 @@ RT_PROGRAM void closest_hit() {
   }
 
   // Indirect illumination
-  if (0.0f < fmaxf(mat_reflectivity)) {
-    float importance = payload.importance * optix::luminance(mat_reflectivity);
+  if (0.0f < mat_fresnel) {
+
+    float3 reflection_vec = optix::reflect(ray.direction, normal);
+    float3 halfway_vec = optix::normalize((-ray.direction) + reflection_vec);
+
+    // Fresnel
+    float wi_dot_n = optix::dot(-ray.direction, halfway_vec);
+    float F = mat_fresnel + (1.0f - mat_fresnel) * pow(1.0f - wi_dot_n, 5.0f);
+
+    float importance = payload.importance * optix::luminance(make_float3(F));
 
     float importance_threshold = 0.01f;
     unsigned int max_depth = 5;
     if (importance_threshold <= importance && payload.recursion_depth < max_depth) {
 
       // Setup a reflection ray from the hit/intersection point
-      float3 reflection_vec = optix::reflect(ray.direction, normal);
       optix::Ray reflection_ray(hit, reflection_vec, 0, EPSILON, RT_DEFAULT_MAX);
 
       // Shoot the reflection ray
@@ -96,7 +103,7 @@ RT_PROGRAM void closest_hit() {
 
       rtTrace(root, reflection_ray, reflection_payload);
 
-      color += mat_reflectivity * reflection_payload.radiance;
+      color += F * reflection_payload.radiance;
     }
   }
 

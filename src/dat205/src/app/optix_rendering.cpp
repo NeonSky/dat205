@@ -40,7 +40,7 @@ void Application::setup_optix_rendering() {
   // Init renderer
   m_ctx->setEntryPointCount(1); // 0 = render
   m_ctx->setRayTypeCount(2);    // 0 = radiance, 1 = shadow
-  m_ctx->setStackSize(1024);
+  m_ctx->setStackSize(2048);
 
   // Debugging settings
   m_ctx->setPrintEnabled(true);
