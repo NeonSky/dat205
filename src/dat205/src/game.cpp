@@ -27,6 +27,7 @@ void PongGame::create_geometry(OptixScene &scene, Group &parent_group) {
   m_paddle_material["mat_ambient_coefficient"]->setFloat(0.3f, 0.3f, 0.3f);
   m_paddle_material["mat_diffuse_coefficient"]->setFloat(1.0f, 0.64f, 0.0f);
   m_paddle_material["mat_specular_coefficient"]->setFloat(0.6f, 0.6f, 0.6f);
+  m_paddle_material["mat_reflectivity"]->setFloat(0.1f, 0.1f, 0.1f);
 
   m_ball_material = ctx->createMaterial();
   m_ball_material->setClosestHitProgram(0, ctx->createProgramFromPTXFile(ptxPath("closest_hit.cu"), "closest_hit"));
@@ -34,6 +35,7 @@ void PongGame::create_geometry(OptixScene &scene, Group &parent_group) {
   m_ball_material["mat_ambient_coefficient"]->setFloat(0.3f, 0.3f, 0.3f);
   m_ball_material["mat_diffuse_coefficient"]->setFloat(1.0f, 1.0f, 1.0f);
   m_ball_material["mat_specular_coefficient"]->setFloat(0.8f, 0.8f, 0.8f);
+  m_ball_material["mat_reflectivity"]->setFloat(0.1f, 0.1f, 0.1f);
 
   // Create the two paddles.
   {
@@ -80,7 +82,7 @@ void PongGame::create_geometry(OptixScene &scene, Group &parent_group) {
     geometry_instance->setMaterial(0, m_ball_material);
     geometry_group->addChild(geometry_instance);
 
-    Geometry geometry = scene.create_sphere(18, 9, m_ball.radius, M_PIf);
+    Geometry geometry = scene.create_sphere(36, 18, m_ball.radius, M_PIf);
     geometry_instance->setGeometry(geometry);
 
     Matrix4x4 M = Matrix<4, 4>::translate(make_float3(0.0f, m_ball.radius, 0.0f));

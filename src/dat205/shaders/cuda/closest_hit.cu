@@ -15,9 +15,10 @@ rtDeclareVariable(float3, ambient_light_color, , );
 rtBuffer<PointLight> lights;
 
 // Properties of the hit surface's material.
-rtDeclareVariable(float3, mat_ambient_coefficient, , );
-rtDeclareVariable(float3, mat_diffuse_coefficient, , );
+rtDeclareVariable(float3, mat_ambient_coefficient , , );
+rtDeclareVariable(float3, mat_diffuse_coefficient , , );
 rtDeclareVariable(float3, mat_specular_coefficient, , );
+rtDeclareVariable(float3, mat_reflectivity        , , );
 
 // Attributes from intersection test.
 rtDeclareVariable(optix::float3, attr_geo_normal, attribute GEO_NORMAL, );
@@ -41,25 +42,27 @@ RT_PROGRAM void closest_hit() {
 
   float3 hit = ray.origin + ray_t * ray.direction;
 
+  // Direct illumination
   for (int i = 0; i < lights.size(); i++) {
     PointLight light = lights[i];
     float3 light_vec = optix::normalize(light.position - hit);
 
     // Add light from light if the lights is on the same side of the surface.
     float n_dot_l = optix::dot(normal, light_vec);
-    if (0 < n_dot_l) {
+    if (0.0f < n_dot_l) {
 
       // Setup a shadow ray from the hit/intersection point, towards the current point light.
       float dist_to_light = optix::length(light.position - hit);
-      optix::Ray shadow_ray(hit, light_vec, 1, EPSILON, dist_to_light);
+      optix::Ray shadow_ray(hit, light_vec, 1, SHADOW_EPSILON, dist_to_light);
 
       // Shoot the shadow ray
-      RayPayload shadow_payload;
-      shadow_payload.radiance = make_float3(1.0f);
+      ShadowRayPayload shadow_payload;
+      shadow_payload.attenuation = make_float3(1.0f);
+
       rtTrace(root, shadow_ray, shadow_payload);
 
-      if (0.0f < fmaxf(shadow_payload.radiance)) {
-        float3 light_color = shadow_payload.radiance * light.color;
+      if (0.0f < fmaxf(shadow_payload.attenuation)) {
+        float3 light_color = shadow_payload.attenuation * light.color;
         color += mat_diffuse_coefficient * n_dot_l * light_color;
 
         // Phong highlight
@@ -71,6 +74,29 @@ RT_PROGRAM void closest_hit() {
         }
       }
 
+    }
+  }
+
+  // Indirect illumination
+  if (0.0f < fmaxf(mat_reflectivity)) {
+    float importance = payload.importance * optix::luminance(mat_reflectivity);
+
+    float importance_threshold = 0.01f;
+    unsigned int max_depth = 5;
+    if (importance_threshold <= importance && payload.recursion_depth < max_depth) {
+
+      // Setup a reflection ray from the hit/intersection point
+      float3 reflection_vec = optix::reflect(ray.direction, normal);
+      optix::Ray reflection_ray(hit, reflection_vec, 0, EPSILON, RT_DEFAULT_MAX);
+
+      // Shoot the reflection ray
+      RayPayload reflection_payload;
+      reflection_payload.importance      = importance;
+      reflection_payload.recursion_depth = payload.recursion_depth + 1;
+
+      rtTrace(root, reflection_ray, reflection_payload);
+
+      color += mat_reflectivity * reflection_payload.radiance;
     }
   }
 

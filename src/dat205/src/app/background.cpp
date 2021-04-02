@@ -13,6 +13,7 @@ void Application::create_background_geometry() {
   mat["mat_ambient_coefficient"]->setFloat(0.3f, 0.3f, 0.3f);
   mat["mat_diffuse_coefficient"]->setFloat(1.0f, 1.0f, 1.0f);
   mat["mat_specular_coefficient"]->setFloat(0.4f, 0.4f, 0.4f);
+  mat["mat_reflectivity"]->setFloat(0.5f, 0.5f, 0.5f);
 
   run_unsafe_optix_code([&]() {
     // Floor

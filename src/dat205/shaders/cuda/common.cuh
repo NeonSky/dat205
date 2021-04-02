@@ -9,9 +9,16 @@
 #include <optixu/optixu_matrix_namespace.h>
 
 #define EPSILON 1.0e-4f
+#define SHADOW_EPSILON 0.1f
 
 struct RayPayload {
-  optix::float3 radiance; // Radiance along the current path segment.
+  optix::float3 radiance;
+  float importance;
+  int recursion_depth;
+};
+
+struct ShadowRayPayload {
+  optix::float3 attenuation;
 };
 
 struct VertexData {

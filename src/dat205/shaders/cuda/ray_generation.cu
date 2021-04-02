@@ -18,9 +18,6 @@ rtDeclareVariable(float3, camera_forward, , );
 
 // Entry point for this ray tracing kernel.
 RT_PROGRAM void ray_generation() {
-
-  RayPayload payload;
-  payload.radiance = make_float3(0.0f);
   
   const float2 pixel = make_float2(launch_index);
   const float2 pixel_center = pixel + make_float2(0.5f);
@@ -36,6 +33,11 @@ RT_PROGRAM void ray_generation() {
   optix::Ray ray = optix::make_Ray(origin, direction, 0, 0.0f, RT_DEFAULT_MAX);
 
   // Shoot the ray, storing the result in payload.
+  RayPayload payload;
+  payload.radiance        = make_float3(0.0f);
+  payload.importance      = 1.0f;
+  payload.recursion_depth = 0;
+
   rtTrace(root, ray, payload);
 
   // Write result to output buffer.
