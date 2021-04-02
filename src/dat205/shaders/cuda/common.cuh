@@ -8,6 +8,8 @@
 #include <optixu/optixu_math_namespace.h>
 #include <optixu/optixu_matrix_namespace.h>
 
+#define EPSILON 1.0e-4f
+
 struct RayPayload {
   optix::float3 radiance; // Radiance along the current path segment.
 };

@@ -9,6 +9,7 @@ void Application::create_background_geometry() {
 
   Material mat = m_ctx->createMaterial();
   mat->setClosestHitProgram(0, m_ctx->createProgramFromPTXFile(ptxPath("closest_hit.cu"), "closest_hit"));
+  mat->setAnyHitProgram(1, m_ctx->createProgramFromPTXFile(ptxPath("any_hit.cu"), "any_hit"));
   mat["mat_ambient_coefficient"]->setFloat(0.3f, 0.3f, 0.3f);
   mat["mat_diffuse_coefficient"]->setFloat(1.0f, 1.0f, 1.0f);
   mat["mat_specular_coefficient"]->setFloat(0.4f, 0.4f, 0.4f);

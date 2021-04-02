@@ -48,15 +48,29 @@ RT_PROGRAM void closest_hit() {
     // Add light from light if the lights is on the same side of the surface.
     float n_dot_l = optix::dot(normal, light_vec);
     if (0 < n_dot_l) {
-      color += mat_diffuse_coefficient * n_dot_l * light.color;
 
-      // Phong highlight
-      float3 halfway_vec = optix::normalize((-ray.direction) + light_vec);
-      float n_dot_h = optix::dot(normal, halfway_vec);
-      if (0 < n_dot_h) {
-        float highlight_sharpness = 88.0f;
-        color += mat_specular_coefficient * light.color * pow(n_dot_h, highlight_sharpness);
+      // Setup a shadow ray from the hit/intersection point, towards the current point light.
+      float dist_to_light = optix::length(light.position - hit);
+      optix::Ray shadow_ray(hit, light_vec, 1, EPSILON, dist_to_light);
+
+      // Shoot the shadow ray
+      RayPayload shadow_payload;
+      shadow_payload.radiance = make_float3(1.0f);
+      rtTrace(root, shadow_ray, shadow_payload);
+
+      if (0.0f < fmaxf(shadow_payload.radiance)) {
+        float3 light_color = shadow_payload.radiance * light.color;
+        color += mat_diffuse_coefficient * n_dot_l * light_color;
+
+        // Phong highlight
+        float3 halfway_vec = optix::normalize((-ray.direction) + light_vec);
+        float n_dot_h = optix::dot(normal, halfway_vec);
+        if (0 < n_dot_h) {
+          float highlight_sharpness = 88.0f;
+          color += mat_specular_coefficient * light.color * pow(n_dot_h, highlight_sharpness);
+        }
       }
+
     }
   }
 
