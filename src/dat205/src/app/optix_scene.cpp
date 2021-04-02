@@ -1,5 +1,7 @@
 #include "app.hpp"
 
+using namespace optix;
+
 void Application::create_scene() {
   run_unsafe_optix_code([&]() {
     m_root_group = m_ctx->createGroup();
@@ -12,6 +14,7 @@ void Application::create_scene() {
 
   create_background_geometry();
   m_game->create_geometry(*m_scene, m_root_group);
+  create_scene_lights();
 }
 
 void Application::update_scene() {
@@ -28,10 +31,10 @@ void Application::update_scene() {
 void Application::render_scene() {
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-  optix::float3 camera_pos;
-  optix::float3 camera_right;
-  optix::float3 camera_up;
-  optix::float3 camera_forward;
+  float3 camera_pos;
+  float3 camera_right;
+  float3 camera_up;
+  float3 camera_forward;
 
   bool camera_changed = m_camera.getFrustum(camera_pos,
                                            camera_right,
@@ -55,4 +58,27 @@ void Application::render_scene() {
   });
 
   display();
+}
+
+void Application::create_scene_lights() {
+  std::vector<PointLight> lights;
+
+  // Sun
+  {
+    PointLight l;
+    l.position = make_float3(-30.0f, 80.0f, -40.0f);
+    l.color    = make_float3(1.0f, 0.86f, 0.68f);
+    lights.push_back(l);
+  }
+
+  Buffer buffer = m_ctx->createBuffer(RT_BUFFER_INPUT);
+  buffer->setFormat(RT_FORMAT_USER);
+  buffer->setElementSize(sizeof(PointLight));
+  buffer->setSize(lights.size());
+
+  memcpy(buffer->map(), lights.data(), sizeof(PointLight) * lights.size());
+  buffer->unmap();
+
+  m_ctx["ambient_light_color"]->setFloat(0.3f, 0.3f, 0.3f);
+  m_ctx["lights"]->set(buffer);
 }

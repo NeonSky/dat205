@@ -23,9 +23,13 @@ void PongGame::create_geometry(OptixScene &scene, Group &parent_group) {
 
   m_paddle_material = ctx->createMaterial();
   m_paddle_material->setClosestHitProgram(0, ctx->createProgramFromPTXFile(ptxPath("closest_hit.cu"), "closest_hit"));
+  m_paddle_material["mat_ambient_coefficient"]->setFloat(0.3f, 0.3f, 0.3f);
+  m_paddle_material["mat_diffuse_coefficient"]->setFloat(1.0f, 0.64f, 0.0f);
 
   m_ball_material = ctx->createMaterial();
   m_ball_material->setClosestHitProgram(0, ctx->createProgramFromPTXFile(ptxPath("closest_hit.cu"), "closest_hit"));
+  m_ball_material["mat_ambient_coefficient"]->setFloat(0.3f, 0.3f, 0.3f);
+  m_ball_material["mat_diffuse_coefficient"]->setFloat(1.0f, 1.0f, 1.0f);
 
   // Create the two paddles.
   {

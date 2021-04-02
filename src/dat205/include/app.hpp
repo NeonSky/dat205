@@ -80,6 +80,7 @@ private:
   std::unique_ptr<OptixScene> m_scene;
 
   void create_scene();
+  void create_scene_lights();
   void update_scene();
   void render_scene();
 

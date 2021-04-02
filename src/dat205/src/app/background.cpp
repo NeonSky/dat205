@@ -9,6 +9,8 @@ void Application::create_background_geometry() {
 
   Material mat = m_ctx->createMaterial();
   mat->setClosestHitProgram(0, m_ctx->createProgramFromPTXFile(ptxPath("closest_hit.cu"), "closest_hit"));
+  mat["mat_ambient_coefficient"]->setFloat(0.3f, 0.3f, 0.3f);
+  mat["mat_diffuse_coefficient"]->setFloat(1.0f, 1.0f, 1.0f);
 
   run_unsafe_optix_code([&]() {
     // Floor

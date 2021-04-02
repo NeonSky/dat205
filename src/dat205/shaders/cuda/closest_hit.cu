@@ -7,6 +7,17 @@ rtDeclareVariable(rtObject, root, , );
 rtDeclareVariable(optix::Ray, ray, rtCurrentRay , );
 rtDeclareVariable(RayPayload, payload, rtPayload, );
 
+// The distance from the ray origin to where the intersection was detected.
+rtDeclareVariable(float, ray_t, rtIntersectionDistance, );
+
+// Point lights in the scene.
+rtDeclareVariable(float3, ambient_light_color, , );
+rtBuffer<PointLight> lights;
+
+// Properties of the hit surface's material.
+rtDeclareVariable(float3, mat_ambient_coefficient, , );
+rtDeclareVariable(float3, mat_diffuse_coefficient, , );
+
 // Attributes from intersection test.
 rtDeclareVariable(optix::float3, attr_geo_normal, attribute GEO_NORMAL, );
 rtDeclareVariable(optix::float3, attr_tangent,    attribute TANGENT   , );
@@ -19,11 +30,26 @@ RT_PROGRAM void closest_hit() {
   float3 geo_normal = optix::normalize(rtTransformNormal(RT_OBJECT_TO_WORLD, attr_geo_normal));
   float3 normal     = optix::normalize(rtTransformNormal(RT_OBJECT_TO_WORLD, attr_normal));
 
+  // Base color, regardless if the surface is exposed to light or not.
+  float3 color = mat_ambient_coefficient * ambient_light_color;
+
   // Flip the shading normal if we hit the backface of the triangle.
   if (0.0f < optix::dot(ray.direction, geo_normal)) {
     normal = -normal;
   }
 
-  // Transform the normal components from [-1.0f, 1.0f] to the range [0.0f, 1.0f] and visualize as radiance.
-  payload.radiance = normal * 0.5f + 0.5f;
+  float3 hit = ray.origin + ray_t * ray.direction;
+
+  for (int i = 0; i < lights.size(); i++) {
+    PointLight light = lights[i];
+    float3 light_vec = optix::normalize(light.position - hit);
+
+    // Add light from light if the lights is on the same side of the surface.
+    float n_dot_l = optix::dot(normal, light_vec);
+    if (0 < n_dot_l) {
+      color += mat_diffuse_coefficient * n_dot_l * light.color;
+    }
+  }
+
+  payload.radiance = color;
 }

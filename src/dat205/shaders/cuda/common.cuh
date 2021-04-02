@@ -18,3 +18,8 @@ struct VertexData {
   optix::float3 normal;
   optix::float3 uv;
 };
+
+struct PointLight {
+  optix::float3 position;
+  optix::float3 color;
+};
