@@ -10,9 +10,10 @@ PongGame::PongGame(float width, float depth)
         m_paddle_width(0.5f),
         m_paddle_height(0.6f),
         m_paddle_depth(2.0f),
-        m_paddle_x_offset(7.5f),
-        m_paddle_speed(12.0f),
-        m_initial_ball_speed(10.0f),
+        m_paddle_x_offset(7.0f),
+        m_paddle_speed(15.0f),
+        m_initial_ball_speed(14.0f),
+        m_normal_ball_speed(20.0f),
         m_score_to_win(3) {
 
   reset();
@@ -162,9 +163,9 @@ void PongGame::update_ball(float dt) {
         static std::uniform_real_distribution<> dist(-0.5, 0.5);
 
         float vz_disturbance = dist(rng);
-        m_ball.vz += m_initial_ball_speed * vz_disturbance;
+        m_ball.vz += m_normal_ball_speed * vz_disturbance;
 
-        float2 vel = m_initial_ball_speed * normalize(make_float2(m_ball.vx, m_ball.vz));
+        float2 vel = m_normal_ball_speed * normalize(make_float2(m_ball.vx, m_ball.vz));
         m_ball.vx = vel.x;
         m_ball.vz = vel.y;
       }

@@ -11,6 +11,11 @@ rtDeclareVariable(float, mat_transparency, , );
 rtDeclareVariable(optix::float3, attr_normal, attribute NORMAL, );
 
 RT_PROGRAM void any_hit() {
+  if (mat_transparency <= 0.0f) {
+    payload.attenuation = make_float3(0.0f);
+    rtTerminateRay();
+  }
+
   float3 normal = optix::normalize(rtTransformNormal(RT_OBJECT_TO_WORLD, attr_normal));
   float n_dot_r = fabs(optix::dot(normal, ray.direction));
 

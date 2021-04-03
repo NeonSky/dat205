@@ -34,7 +34,7 @@ void Application::create_background_geometry() {
       geometry_group->addChild(geometry_instance);
 
       float T[16] = {
-        10.0f, 0.0f, 0.0f, 0.0f,
+        8.0f, 0.0f, 0.0f, 0.0f,
         0.0f, 1.0f, 0.0f, 0.0f,
         0.0f, 0.0f, 5.0f, 0.0f,
         0.0f, 0.0f, 0.0f, 1.0f
@@ -63,7 +63,7 @@ void Application::create_background_geometry() {
       mat["mat_refractive_index"]->setFloat(1.5f);
 
       auto add_wall = [&](float z_offset, float height) {
-        Geometry geometry = m_scene->create_cuboid(20, height, 1);
+        Geometry geometry = m_scene->create_cuboid(16, height, 1);
 
         GeometryInstance geometry_instance = m_ctx->createGeometryInstance();
         geometry_instance->setGeometry(geometry);
@@ -107,7 +107,7 @@ void Application::create_background_geometry() {
         mat["mat_ambient_coefficient"]->setFloat(0.1f, 0.1f, 0.1f);
         mat["mat_diffuse_coefficient"]->setFloat(0.3f, 0.3f, 0.3f);
         mat["mat_specular_coefficient"]->setFloat(0.0f, 0.0f, 0.0f);
-        mat["mat_fresnel"]->setFloat(0.1f);
+        mat["mat_fresnel"]->setFloat(0.0f);
         mat["mat_transparency"]->setFloat(0.0f);
 
         Geometry geometry = m_scene->create_cuboid(1, 1, 10);
@@ -140,8 +140,9 @@ void Application::create_background_geometry() {
         m_root_group->addChild(t);
       };
 
-      add_wall(-10.5f, make_float3(1.0f, 0.0f, 0.0f));
-      add_wall(10.5f, make_float3(0.0f, 0.0f, 1.0f));
+      // NOTE: We apply a small offset to avoid z-fighting.
+      add_wall(-8.501f, make_float3(1.0f, 0.0f, 0.0f));
+      add_wall(8.501f, make_float3(0.0f, 0.0f, 1.0f));
     }
 
   });

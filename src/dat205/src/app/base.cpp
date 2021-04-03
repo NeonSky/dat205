@@ -23,7 +23,7 @@ Application::Application(ApplicationCreateInfo create_info) {
 
   // Game
   m_paused = true;
-  m_game = std::unique_ptr<PongGame>(new PongGame(10.0f, 5.0f));
+  m_game = std::unique_ptr<PongGame>(new PongGame(8.0f, 5.0f));
 
   // Optix Rendering
   setup_optix_rendering();

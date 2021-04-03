@@ -40,6 +40,7 @@ private:
 
   const float m_paddle_speed;
   const float m_initial_ball_speed;
+  const float m_normal_ball_speed;
 
   const int m_score_to_win;
 

@@ -91,8 +91,8 @@ RT_PROGRAM void closest_hit() {
 
     float importance = payload.importance * optix::luminance(make_float3(F));
 
-    float importance_threshold = 0.01f;
-    unsigned int max_depth = 5;
+    float importance_threshold = 0.1f;
+    unsigned int max_depth = 3;
     if (importance_threshold <= importance && payload.recursion_depth < max_depth) {
 
       // Setup a reflection ray from the hit/intersection point
@@ -131,8 +131,8 @@ RT_PROGRAM void closest_hit() {
 
       float importance = payload.importance * (1.0f - F) * optix::luminance(make_float3(1.0f));
 
-      const float importance_threshold = 0.01f;
-      const unsigned int max_depth = 5;
+      const float importance_threshold = 0.1f;
+      const unsigned int max_depth = 3;
       if (importance_threshold <= importance && payload.recursion_depth < max_depth) {
         optix::Ray refraction_ray(hit, refraction_vec, 0, EPSILON, RT_DEFAULT_MAX);
 
