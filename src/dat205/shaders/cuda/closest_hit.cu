@@ -18,7 +18,9 @@ rtBuffer<PointLight> lights;
 rtDeclareVariable(float3, mat_ambient_coefficient , , );
 rtDeclareVariable(float3, mat_diffuse_coefficient , , );
 rtDeclareVariable(float3, mat_specular_coefficient, , );
+rtDeclareVariable(float, mat_refractive_index     , , );
 rtDeclareVariable(float, mat_fresnel              , , );
+rtDeclareVariable(float, mat_transparency         , , );
 
 // Attributes from intersection test.
 rtDeclareVariable(optix::float3, attr_geo_normal, attribute GEO_NORMAL, );
@@ -36,7 +38,7 @@ RT_PROGRAM void closest_hit() {
   float3 color = mat_ambient_coefficient * ambient_light_color;
 
   // Flip the shading normal if we hit the backface of the triangle.
-  if (0.0f < optix::dot(ray.direction, geo_normal)) {
+  if (optix::dot(-ray.direction, geo_normal) < 0.0f) {
     normal = -normal;
   }
 
@@ -77,15 +79,14 @@ RT_PROGRAM void closest_hit() {
     }
   }
 
-  // Indirect illumination
+  // Indirect illumination from reflections
   if (0.0f < mat_fresnel) {
-
     float3 reflection_vec = optix::reflect(ray.direction, normal);
     float3 halfway_vec = optix::normalize((-ray.direction) + reflection_vec);
 
     // Fresnel
-    float wi_dot_n = optix::dot(-ray.direction, halfway_vec);
-    float F = mat_fresnel + (1.0f - mat_fresnel) * pow(1.0f - wi_dot_n, 5.0f);
+    float wo_dot_h = optix::dot(-ray.direction, halfway_vec);
+    float F = mat_fresnel + (1.0f - mat_fresnel) * pow(1.0f - wo_dot_h, 5.0f);
 
     float importance = payload.importance * optix::luminance(make_float3(F));
 
@@ -104,6 +105,45 @@ RT_PROGRAM void closest_hit() {
       rtTrace(root, reflection_ray, reflection_payload);
 
       color += F * reflection_payload.radiance;
+    }
+  }
+
+  // Indirect illumination from refractions
+  // TODO: randomize between reflection and refractions by sampling the Fresnel term. This will prevent ray branching.
+  if (0.0f < mat_transparency) {
+    float3 n = optix::normalize(rtTransformNormal(RT_OBJECT_TO_WORLD, attr_normal));
+
+    float3 refraction_vec;
+    bool total_internal_reflection = !optix::refract(refraction_vec, ray.direction, n, mat_refractive_index);
+
+    if (!total_internal_reflection) {
+
+      // External or internal reflection?
+      float cos_theta = optix::dot(ray.direction, n);
+      if (cos_theta < 0.0f) {
+        cos_theta = -cos_theta;
+      } else {
+        cos_theta = optix::dot(refraction_vec, n);
+      }
+
+      float F = mat_fresnel + (1.0f - mat_fresnel) * pow(1.0f - cos_theta, 5.0f);
+
+      float importance = payload.importance * (1.0f - F) * optix::luminance(make_float3(1.0f));
+
+      const float importance_threshold = 0.01f;
+      const unsigned int max_depth = 5;
+      if (importance_threshold <= importance && payload.recursion_depth < max_depth) {
+        optix::Ray refraction_ray(hit, refraction_vec, 0, EPSILON, RT_DEFAULT_MAX);
+
+        // Shoot the refraction ray
+        RayPayload refraction_payload;
+        refraction_payload.importance      = payload.importance;
+        refraction_payload.recursion_depth = payload.recursion_depth + 1;
+
+        rtTrace(root, refraction_ray, refraction_payload);
+
+        color += mat_transparency * (1.0f - F) * refraction_payload.radiance;
+      }
     }
   }
 
