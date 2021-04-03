@@ -66,6 +66,7 @@ RT_PROGRAM void closest_hit() {
 
       if (0.0f < fmaxf(shadow_payload.attenuation)) {
         float3 light_color = shadow_payload.attenuation * light.color;
+        light_color *= light.intensity / pow(dist_to_light, 2.0f);
         color += mat_diffuse_coefficient * n_dot_l * light_color;
 
         // Phong highlight
@@ -73,7 +74,7 @@ RT_PROGRAM void closest_hit() {
         float n_dot_h = optix::dot(normal, halfway_vec);
         if (0 < n_dot_h) {
           float highlight_sharpness = 88.0f;
-          color += mat_specular_coefficient * light.color * pow(n_dot_h, highlight_sharpness);
+          color += mat_specular_coefficient * light_color * pow(n_dot_h, highlight_sharpness);
         }
       }
 

@@ -66,8 +66,29 @@ void Application::create_scene_lights() {
   // Sun
   {
     PointLight l;
-    l.position = make_float3(-30.0f, 80.0f, -40.0f);
-    l.color    = make_float3(1.0f, 0.86f, 0.68f);
+    l.position  = make_float3(-30.0f, 80.0f, -40.0f);
+    l.color     = make_float3(0.95f, 0.86f, 0.83f);
+    l.intensity = 9000.0f;
+    lights.push_back(l);
+  }
+  // Red goal
+  {
+    PointLight l;
+    l.position  = make_float3(-8.0f, 4.0f, -3.0f);
+    l.color     = make_float3(0.8f, 0.0f, 0.0f);
+    l.intensity = 25.0f;
+    lights.push_back(l);
+    l.position  = make_float3(-8.0f, 4.0f, 3.0f);
+    lights.push_back(l);
+  }
+  // Blue goal
+  {
+    PointLight l;
+    l.position  = make_float3(8.0f, 4.0f, -3.0f);
+    l.color     = make_float3(0.0f, 0.0f, 0.8f);
+    l.intensity = 25.0f;
+    lights.push_back(l);
+    l.position  = make_float3(8.0f, 4.0f, 3.0f);
     lights.push_back(l);
   }
 

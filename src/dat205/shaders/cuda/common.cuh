@@ -33,4 +33,5 @@ struct VertexData {
 struct PointLight {
   optix::float3 position;
   optix::float3 color;
+  float intensity;
 };

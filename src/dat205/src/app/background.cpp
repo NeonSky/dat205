@@ -10,8 +10,8 @@ void Application::create_background_geometry() {
   Material mat = m_ctx->createMaterial();
   mat->setClosestHitProgram(0, m_ctx->createProgramFromPTXFile(ptxPath("closest_hit.cu"), "closest_hit"));
   mat->setAnyHitProgram(1, m_ctx->createProgramFromPTXFile(ptxPath("any_hit.cu"), "any_hit"));
-  mat["mat_ambient_coefficient"]->setFloat(0.2f, 0.2f, 0.2f);
-  mat["mat_diffuse_coefficient"]->setFloat(0.7f, 0.7f, 0.7f);
+  mat["mat_ambient_coefficient"]->setFloat(0.0f, 0.0f, 0.0f);
+  mat["mat_diffuse_coefficient"]->setFloat(0.2f, 0.2f, 0.2f);
   mat["mat_specular_coefficient"]->setFloat(0.4f, 0.4f, 0.4f);
   mat["mat_fresnel"]->setFloat(0.2f);
   mat["mat_transparency"]->setFloat(0.0f);
@@ -56,7 +56,7 @@ void Application::create_background_geometry() {
       mat->setAnyHitProgram(1, m_ctx->createProgramFromPTXFile(ptxPath("any_hit.cu"), "any_hit"));
       mat["mat_emissive_coefficient"]->setFloat(0.0f, 0.0f, 0.0f);
       mat["mat_ambient_coefficient"]->setFloat(0.3f, 0.3f, 0.3f);
-      mat["mat_diffuse_coefficient"]->setFloat(0.6f, 0.6f, 0.6f);
+      mat["mat_diffuse_coefficient"]->setFloat(0.3f, 0.3f, 0.3f);
       mat["mat_specular_coefficient"]->setFloat(0.0f, 0.0f, 0.0f);
       mat["mat_fresnel"]->setFloat(0.0f);
       mat["mat_transparency"]->setFloat(0.8f);
