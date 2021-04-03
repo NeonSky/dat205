@@ -10,8 +10,8 @@ void Application::create_background_geometry() {
   Material mat = m_ctx->createMaterial();
   mat->setClosestHitProgram(0, m_ctx->createProgramFromPTXFile(ptxPath("closest_hit.cu"), "closest_hit"));
   mat->setAnyHitProgram(1, m_ctx->createProgramFromPTXFile(ptxPath("any_hit.cu"), "any_hit"));
-  mat["mat_ambient_coefficient"]->setFloat(0.3f, 0.3f, 0.3f);
-  mat["mat_diffuse_coefficient"]->setFloat(1.0f, 1.0f, 1.0f);
+  mat["mat_ambient_coefficient"]->setFloat(0.2f, 0.2f, 0.2f);
+  mat["mat_diffuse_coefficient"]->setFloat(0.7f, 0.7f, 0.7f);
   mat["mat_specular_coefficient"]->setFloat(0.4f, 0.4f, 0.4f);
   mat["mat_fresnel"]->setFloat(0.2f);
   mat["mat_transparency"]->setFloat(0.0f);
@@ -55,14 +55,14 @@ void Application::create_background_geometry() {
       mat->setClosestHitProgram(0, m_ctx->createProgramFromPTXFile(ptxPath("closest_hit.cu"), "closest_hit"));
       mat->setAnyHitProgram(1, m_ctx->createProgramFromPTXFile(ptxPath("any_hit.cu"), "any_hit"));
       mat["mat_ambient_coefficient"]->setFloat(0.3f, 0.3f, 0.3f);
-      mat["mat_diffuse_coefficient"]->setFloat(1.0f, 1.0f, 1.0f);
+      mat["mat_diffuse_coefficient"]->setFloat(0.6f, 0.6f, 0.6f);
       mat["mat_specular_coefficient"]->setFloat(0.0f, 0.0f, 0.0f);
       mat["mat_fresnel"]->setFloat(0.0f);
       mat["mat_transparency"]->setFloat(0.8f);
       mat["mat_refractive_index"]->setFloat(1.5f);
 
-      auto add_wall = [&](float z_offset) {
-        Geometry geometry = m_scene->create_cuboid(20, 2, 1);
+      auto add_wall = [&](float z_offset, float height) {
+        Geometry geometry = m_scene->create_cuboid(20, height, 1);
 
         GeometryInstance geometry_instance = m_ctx->createGeometryInstance();
         geometry_instance->setGeometry(geometry);
@@ -92,8 +92,8 @@ void Application::create_background_geometry() {
         m_root_group->addChild(t);
       };
 
-      add_wall(-5.5f);
-      add_wall(5.5f);
+      add_wall(5.5f, 2.0f);
+      add_wall(-5.5f, 4.0f);
     }
   });
 }
