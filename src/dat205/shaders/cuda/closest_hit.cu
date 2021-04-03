@@ -15,6 +15,7 @@ rtDeclareVariable(float3, ambient_light_color, , );
 rtBuffer<PointLight> lights;
 
 // Properties of the hit surface's material.
+rtDeclareVariable(float3, mat_emissive_coefficient, , );
 rtDeclareVariable(float3, mat_ambient_coefficient , , );
 rtDeclareVariable(float3, mat_diffuse_coefficient , , );
 rtDeclareVariable(float3, mat_specular_coefficient, , );
@@ -35,7 +36,7 @@ RT_PROGRAM void closest_hit() {
   float3 normal     = optix::normalize(rtTransformNormal(RT_OBJECT_TO_WORLD, attr_normal));
 
   // Base color, regardless if the surface is exposed to light or not.
-  float3 color = mat_ambient_coefficient * ambient_light_color;
+  float3 color = mat_emissive_coefficient + mat_ambient_coefficient * ambient_light_color;
 
   // Flip the shading normal if we hit the backface of the triangle.
   if (optix::dot(-ray.direction, geo_normal) < 0.0f) {
