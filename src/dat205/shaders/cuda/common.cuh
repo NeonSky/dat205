@@ -10,8 +10,10 @@
 
 #include "device_include/random.h"
 
-#define EPSILON 1.0e-4f
-#define SHADOW_EPSILON 0.1f
+#define EPSILON 0.1f
+
+// Ensures that helper functions are inline.
+#define RT_FUNCTION __forceinline__ __device__
 
 struct RayPayload {
   optix::float3 radiance;

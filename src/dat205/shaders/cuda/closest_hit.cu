@@ -15,13 +15,14 @@ rtDeclareVariable(float3, ambient_light_color, , );
 rtBuffer<PointLight> lights;
 
 // Properties of the hit surface's material.
-rtDeclareVariable(float3, mat_emissive_coefficient, , );
-rtDeclareVariable(float3, mat_ambient_coefficient , , );
-rtDeclareVariable(float3, mat_diffuse_coefficient , , );
-rtDeclareVariable(float3, mat_specular_coefficient, , );
-rtDeclareVariable(float, mat_refractive_index     , , );
-rtDeclareVariable(float, mat_fresnel              , , );
-rtDeclareVariable(float, mat_transparency         , , );
+rtDeclareVariable(float3, mat_color          , , );
+rtDeclareVariable(float, mat_emission        , , ); // 0 = no emission       , 1 = full emission
+rtDeclareVariable(float, mat_metalness       , , ); // 0 = dieletric         , 1 = metal
+rtDeclareVariable(float, mat_shininess       , , ); // 0 = smeared highlight , 1 = dense highlight
+rtDeclareVariable(float, mat_transparency    , , ); // 0 = opaque            , 1 = transparent
+rtDeclareVariable(float, mat_reflectivity    , , ); // 0 = diffuse           , 1 = mirror
+rtDeclareVariable(float, mat_fresnel         , , ); // 0 = only absorptions  , 1 = only reflections (when looking from directly above)
+rtDeclareVariable(float, mat_refractive_index, , ); // 1.0 = air material
 
 // Attributes from intersection test.
 rtDeclareVariable(optix::float3, attr_geo_normal, attribute GEO_NORMAL, );
@@ -29,75 +30,115 @@ rtDeclareVariable(optix::float3, attr_tangent,    attribute TANGENT   , );
 rtDeclareVariable(optix::float3, attr_normal,     attribute NORMAL    , );
 rtDeclareVariable(optix::float3, attr_uv,         attribute TEX_UV    , );
 
-RT_PROGRAM void closest_hit() {
+RT_FUNCTION float fresnel(float wo_dot_h) {
+  float F = mat_fresnel + (1.0f - mat_fresnel) * pow(1.0f - wo_dot_h, 5.0f);
+  return F;
+}
 
-  // Transform the (unnormalized) object space normals into world space.
-  float3 geo_normal = optix::normalize(rtTransformNormal(RT_OBJECT_TO_WORLD, attr_geo_normal));
-  float3 normal     = optix::normalize(rtTransformNormal(RT_OBJECT_TO_WORLD, attr_normal));
+RT_FUNCTION float torrance_sparrow_brdf(float n_dot_wi,
+                                        float n_dot_wo,
+                                        float n_dot_wh,
+                                        float wo_dot_wh) {
 
-  // Base color, regardless if the surface is exposed to light or not.
-  float3 color = mat_emissive_coefficient + mat_ambient_coefficient * ambient_light_color;
+  float F = fresnel(wo_dot_wh);
+  float D = ((mat_shininess + 2.0f) / (2.0f * M_PIf)) * pow(n_dot_wh, mat_shininess);
+  float G = min(1.0f, min(2.0f * n_dot_wh * n_dot_wo / wo_dot_wh, 2.0f * n_dot_wh * n_dot_wi / wo_dot_wh));
 
-  // Flip the shading normal if we hit the backface of the triangle.
-  if (optix::dot(-ray.direction, geo_normal) < 0.0f) {
-    normal = -normal;
+  float denominator = 4.0f * n_dot_wo * n_dot_wi;
+
+  return F * D * G / denominator;
+}
+
+RT_FUNCTION float3 direct_illumination(float3 const& wo,
+                                       float3 const& hit,
+                                       float3 const& n) {
+
+  float3 illumination = make_float3(0.0f);
+
+  // Do not illuminate the backface of a triangle.
+  float n_dot_wo  = optix::dot(n, wo);
+  if (n_dot_wo <= 0.0f) {
+    return illumination;
   }
 
-  float3 hit = ray.origin + ray_t * ray.direction;
-
-  // Direct illumination
   for (int i = 0; i < lights.size(); i++) {
     PointLight light = lights[i];
-    float3 light_vec = optix::normalize(light.position - hit);
 
-    // Add light from light if the lights is on the same side of the surface.
-    float n_dot_l = optix::dot(normal, light_vec);
-    if (0.0f < n_dot_l) {
-
-      // Setup a shadow ray from the hit/intersection point, towards the current point light.
-      float dist_to_light = optix::length(light.position - hit);
-      optix::Ray shadow_ray(hit, light_vec, 1, SHADOW_EPSILON, dist_to_light);
-
-      // Shoot the shadow ray
-      ShadowRayPayload shadow_payload;
-      shadow_payload.attenuation = make_float3(1.0f);
-
-      rtTrace(root, shadow_ray, shadow_payload);
-
-      if (0.0f < fmaxf(shadow_payload.attenuation)) {
-        float3 light_color = shadow_payload.attenuation * light.color;
-        light_color *= light.intensity / pow(dist_to_light, 2.0f);
-        color += mat_diffuse_coefficient * n_dot_l * light_color;
-
-        // Phong highlight
-        float3 halfway_vec = optix::normalize((-ray.direction) + light_vec);
-        float n_dot_h = optix::dot(normal, halfway_vec);
-        if (0 < n_dot_h) {
-          float highlight_sharpness = 88.0f;
-          color += mat_specular_coefficient * light_color * pow(n_dot_h, highlight_sharpness);
-        }
-      }
-
+    // Ensure that the light could illuminate the front face.
+    float3 wi = optix::normalize(light.position - hit);
+    float n_dot_wi = optix::dot(n, wi);
+    if (n_dot_wi <= 0.0f) {
+      continue;
     }
+
+    // Setup a shadow ray from the hit/intersection point, towards the current point light.
+    float dist_to_light = optix::length(light.position - hit);
+    optix::Ray shadow_ray(hit, wi, 1, EPSILON, dist_to_light);
+
+    // Shoot the shadow ray
+    ShadowRayPayload shadow_payload;
+    shadow_payload.attenuation = make_float3(1.0f);
+
+    rtTrace(root, shadow_ray, shadow_payload);
+
+    // Ensure that the shadow ray is not entirely absorbed along the way.
+    if (fmaxf(shadow_payload.attenuation) <= 0.0f) {
+      continue;
+    }
+
+    // Compute direct illumination from the light
+    float3 light_illumination = shadow_payload.attenuation * (light.intensity / pow(dist_to_light, 2.0f)) * light.color;
+
+    // Compute BRDF
+    float3 wh = optix::normalize(wo + wi);
+
+    float n_dot_wh  = optix::dot(n, wh);
+    float wo_dot_wh = optix::dot(wo, wh);
+
+    float F = fresnel(wo_dot_wh);
+    float D = ((mat_shininess + 2.0f) / (2.0f * M_PIf)) * pow(n_dot_wh, mat_shininess);
+    float G = min(1.0f, min(2.0f * n_dot_wh * n_dot_wo / wo_dot_wh, 2.0f * n_dot_wh * n_dot_wi / wo_dot_wh));
+    float denominator = 4.0f * n_dot_wo * n_dot_wi;
+
+    float brdf = F * D * G / denominator;
+
+    // Material models
+    float3 diffuse_model    = mat_color * M_1_PIf * n_dot_wi * light_illumination;
+    float3 dieletric_model  = brdf * n_dot_wi * light_illumination + (1.0f - F) * diffuse_model;
+    float3 metal_model      = brdf * mat_color * n_dot_wi * light_illumination;
+    float3 microfacet_model = mat_metalness * metal_model + (1.0f - mat_metalness) * dieletric_model;
+
+    // Apply a linear blend between a perfectly diffuse surface and a microfacet brdf.
+    float3 material_model = mat_reflectivity * microfacet_model + (1.0f - mat_reflectivity) * diffuse_model;
+
+    illumination += material_model;
   }
 
+  return illumination;
+}
+
+RT_FUNCTION float3 indirect_illumination(float3 const& wo,
+                                         float3 const& hit,
+                                         float3 const& n) {
+
+  float3 illumination = make_float3(0.0f);
+
   // Indirect illumination from reflections
-  if (0.0f < mat_fresnel) {
-    float3 reflection_vec = optix::reflect(ray.direction, normal);
-    float3 halfway_vec = optix::normalize((-ray.direction) + reflection_vec);
+  if (0.0f < mat_reflectivity && payload.recursion_depth < 3) {
+    float3 wi = optix::reflect(ray.direction, n);
+    float3 wh = optix::normalize(wo + wi);
 
     // Fresnel
-    float wo_dot_h = optix::dot(-ray.direction, halfway_vec);
-    float F = mat_fresnel + (1.0f - mat_fresnel) * pow(1.0f - wo_dot_h, 5.0f);
+    float wo_dot_wh = max(0.01f, optix::dot(wo, wh));
+    float F = mat_reflectivity * fresnel(wo_dot_wh);
 
     float importance = payload.importance * optix::luminance(make_float3(F));
 
     float importance_threshold = 0.1f;
-    unsigned int max_depth = 3;
-    if (importance_threshold <= importance && payload.recursion_depth < max_depth) {
+    if (importance_threshold <= importance) {
 
       // Setup a reflection ray from the hit/intersection point
-      optix::Ray reflection_ray(hit, reflection_vec, 0, EPSILON, RT_DEFAULT_MAX);
+      optix::Ray reflection_ray(hit, wi, 0, EPSILON, RT_DEFAULT_MAX);
 
       // Shoot the reflection ray
       RayPayload reflection_payload;
@@ -106,48 +147,72 @@ RT_PROGRAM void closest_hit() {
 
       rtTrace(root, reflection_ray, reflection_payload);
 
-      color += F * reflection_payload.radiance;
+      float3 mirror_model = F * reflection_payload.radiance;
+      float3 metal_model  = mat_color * F * reflection_payload.radiance;
+
+      float3 material_model = mat_metalness * metal_model + (1.0f - mat_metalness) * mirror_model;
+
+      illumination += material_model;
     }
   }
 
   // Indirect illumination from refractions
-  // TODO: randomize between reflection and refractions by sampling the Fresnel term. This will prevent ray branching.
-  if (0.0f < mat_transparency) {
-    float3 n = optix::normalize(rtTransformNormal(RT_OBJECT_TO_WORLD, attr_normal));
+  if (0.0f < mat_transparency && payload.recursion_depth < 5) {
+    float3 wi;
+    bool total_internal_reflection = !optix::refract(wi, ray.direction, n, mat_refractive_index);
 
-    float3 refraction_vec;
-    bool total_internal_reflection = !optix::refract(refraction_vec, ray.direction, n, mat_refractive_index);
+    if (total_internal_reflection) {
+      wi = optix::reflect(ray.direction, n);
+    }
 
-    if (!total_internal_reflection) {
+    // External or internal?
+    float cos_theta = optix::dot(ray.direction, n);
 
-      // External or internal reflection?
-      float cos_theta = optix::dot(ray.direction, n);
-      if (cos_theta < 0.0f) {
-        cos_theta = -cos_theta;
-      } else {
-        cos_theta = optix::dot(refraction_vec, n);
-      }
+    if (cos_theta < 0.0f) {
+      // wi comes from the outside air
+      cos_theta = optix::dot(wo, n);
+    } else {
+      // wi comes from the inside of the material
+      cos_theta = optix::dot(wi, n);
+    }
 
-      float F = mat_fresnel + (1.0f - mat_fresnel) * pow(1.0f - cos_theta, 5.0f);
+    float F = fresnel(cos_theta);
 
-      float importance = payload.importance * (1.0f - F) * optix::luminance(make_float3(1.0f));
+    float importance = payload.importance * (1.0f - F) * optix::luminance(make_float3(1.0f));
 
-      const float importance_threshold = 0.1f;
-      const unsigned int max_depth = 3;
-      if (importance_threshold <= importance && payload.recursion_depth < max_depth) {
-        optix::Ray refraction_ray(hit, refraction_vec, 0, EPSILON, RT_DEFAULT_MAX);
+    const float importance_threshold = 0.1f;
+    if (importance_threshold <= importance) {
+      optix::Ray refraction_ray(hit, wi, 0, EPSILON, RT_DEFAULT_MAX);
 
-        // Shoot the refraction ray
-        RayPayload refraction_payload;
-        refraction_payload.importance      = payload.importance;
-        refraction_payload.recursion_depth = payload.recursion_depth + 1;
+      // Shoot the refraction ray
+      RayPayload refraction_payload;
+      refraction_payload.importance      = payload.importance;
+      refraction_payload.recursion_depth = payload.recursion_depth + 1;
 
-        rtTrace(root, refraction_ray, refraction_payload);
+      rtTrace(root, refraction_ray, refraction_payload);
 
-        color += mat_transparency * (1.0f - F) * refraction_payload.radiance;
-      }
+      illumination += mat_transparency * (1.0f - F) * refraction_payload.radiance;
     }
   }
+
+  return illumination;
+}
+
+RT_PROGRAM void closest_hit() {
+
+  // Transform the (unnormalized) object space normals into world space.
+  float3 geo_normal = optix::normalize(rtTransformNormal(RT_OBJECT_TO_WORLD, attr_geo_normal));
+  float3 normal     = optix::normalize(rtTransformNormal(RT_OBJECT_TO_WORLD, attr_normal));
+
+  float3 wo = -ray.direction;
+  float3 hit = ray.origin + ray_t * ray.direction;
+
+  // Base color, regardless if the surface is exposed to light or not.
+  float3 color = make_float3(0.0f);
+
+  color += mat_color * mat_emission;
+  color += direct_illumination(wo, hit, normal);
+  color += indirect_illumination(wo, hit, normal);
 
   payload.radiance = color;
 }

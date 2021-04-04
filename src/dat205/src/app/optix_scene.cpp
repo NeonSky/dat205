@@ -68,7 +68,7 @@ void Application::create_scene_lights() {
     PointLight l;
     l.position  = make_float3(-30.0f, 80.0f, -40.0f);
     l.color     = make_float3(0.95f, 0.86f, 0.83f);
-    l.intensity = 9000.0f;
+    l.intensity = 20000.0f;
     lights.push_back(l);
   }
   // Red goal
