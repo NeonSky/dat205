@@ -2,6 +2,7 @@
 
 using namespace optix;
 
+// TODO: Move to game
 void Application::create_background_geometry() {
   std::string env_map_path = std::string(sutil::samplesDir()) + "/data/chinese_garden_2k.hdr";
   float3 default_color = make_float3(1.0f, 1.0f, 1.0f);

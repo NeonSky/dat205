@@ -310,6 +310,7 @@ add_subdirectory(optixVox)
 add_subdirectory(optixParticleVolumes)
 add_subdirectory(optixIntroduction)
 add_subdirectory(dat205)
+add_subdirectory(dat205-water)
 
 # Our sutil library.  The rules to build it are found in the subdirectory.
 add_subdirectory(sutil)
