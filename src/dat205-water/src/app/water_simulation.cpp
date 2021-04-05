@@ -31,7 +31,7 @@ void Application::setup_water_simulation() {
   float3 offset = make_float3(- 0.8f * m_box_width, PARTICLE_RADIUS + 0.5f, - 0.8f * m_box_depth);
 
   // int side_length = 50; // A bit more than 10^5 particles
-  int side_length = 50;
+  int side_length = 20;
   m_particles_count = side_length * side_length * side_length;
 
   std::random_device rd;
