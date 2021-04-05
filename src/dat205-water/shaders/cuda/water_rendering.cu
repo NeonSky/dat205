@@ -18,8 +18,8 @@ RT_PROGRAM void closest_hit() {
   // const float speed = optix::length(attr_particle.velocity);
   // payload.radiance = make_float3(speed, speed, 1.0f);
 
-  // payload.radiance = make_float3(0.0f, 0.0f, 1.0f);
-  payload.radiance = attr_particle.velocity;
+  payload.radiance = make_float3(0.0f, 0.0f, 1.0f);
+  // payload.radiance = attr_particle.velocity;
 }
 
 RT_PROGRAM void bounding_box(int primitive_index, float result[6]) {

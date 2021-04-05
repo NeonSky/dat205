@@ -1,5 +1,7 @@
 #include "app.hpp"
 
+#include <random>
+
 using namespace optix;
 
 void Application::setup_water_simulation() {
@@ -26,17 +28,23 @@ void Application::setup_water_simulation() {
 
   geometry_group->addChild(geometry_instance);
 
-  float3 offset = make_float3(-m_box_width/2.0f, PARTICLE_RADIUS + 0.5f, -m_box_depth/2.0f);
+  float3 offset = make_float3(- 0.8f * m_box_width, PARTICLE_RADIUS + 0.5f, - 0.8f * m_box_depth);
 
   // int side_length = 50; // A bit more than 10^5 particles
-  int side_length = 5;
+  int side_length = 50;
   m_particles_count = side_length * side_length * side_length;
+
+  std::random_device rd;
+  std::mt19937 rng(rd());
+  std::uniform_real_distribution<> dist(-4.0, 4.0);
 
   std::vector<Particle> particles(m_particles_count);
   for (int x = 0; x < side_length; x++) {
     for (int y = 0; y < side_length; y++) {
       for (int z = 0; z < side_length; z++) {
-        particles[x * side_length * side_length + y * side_length + z].position = offset + make_float3(x, y, z) / (2.0f * 5.0f);
+        Particle& p = particles[x * side_length * side_length + y * side_length + z];
+        p.position = offset + make_float3(x, y, z) / (6.0f);
+        p.velocity = make_float3(dist(rng), dist(rng), dist(rng));
       }
     }
   }
@@ -51,6 +59,11 @@ void Application::setup_water_simulation() {
 
   m_ctx["particles_buffer"]->setBuffer(m_particles_buffer);
   m_ctx["g"]->setFloat(-9.82f);
+  m_ctx["y_min"]->setFloat(0.0f);
+  m_ctx["x_min"]->setFloat(-m_box_width);
+  m_ctx["x_max"]->setFloat(m_box_width);
+  m_ctx["z_min"]->setFloat(-m_box_depth);
+  m_ctx["z_max"]->setFloat(m_box_depth);
 
   Geometry geometry = m_ctx->createGeometry();
   // geometry["particles_buffer"]->setBuffer(m_particles_buffer);

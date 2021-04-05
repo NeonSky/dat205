@@ -47,7 +47,7 @@ void Application::create_background_geometry() {
     };
 
     m_box_width  = 5.0f;
-    m_box_height = 1.5f;
+    m_box_height = 0.7f;
     m_box_depth  = 5.0f;
 
     // Floor
