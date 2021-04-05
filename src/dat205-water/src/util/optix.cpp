@@ -7,7 +7,7 @@
 using namespace optix;
 
 std::string ptxPath(std::string const& cuda_file) {
-  return std::string(sutil::samplesPTXDir()) + std::string("/") + "dat205" + std::string("_generated_") + cuda_file + std::string(".ptx");
+  return std::string(sutil::samplesPTXDir()) + std::string("/") + "dat205-water" + std::string("_generated_") + cuda_file + std::string(".ptx");
 }
 
 void run_unsafe_optix_code(std::function<void()> f) {

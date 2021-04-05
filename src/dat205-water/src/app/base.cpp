@@ -21,15 +21,15 @@ Application::Application(ApplicationCreateInfo create_info) {
     app->handle_keyboard_input(window, key, scancode, action, mods);
   });
 
-  // Water Simulation
-  m_paused = true;
-
   // Optix Rendering
   setup_optix_rendering();
 
   // Scene
   m_scene = std::unique_ptr<OptixScene>(new OptixScene(m_ctx));
   create_scene();
+
+  // Water Simulation
+  setup_water_simulation();
 
   // Verify correctness of setup and perform dummy launch to build everything.
   m_ctx->validate();

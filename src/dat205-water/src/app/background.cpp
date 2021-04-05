@@ -46,40 +46,39 @@ void Application::create_background_geometry() {
       m_root_group->addChild(t);
     };
 
-    // Dimensions of water simulation
-    float width  = 5.0f;
-    float height = 1.5f;
-    float depth  = 5.0f;
+    m_box_width  = 5.0f;
+    m_box_height = 1.5f;
+    m_box_depth  = 5.0f;
 
     // Floor
-    add_glass_pane(Matrix<4, 4>::rotate(M_PI, make_float3(0.0f, 0.0f, 1.0f)) * Matrix<4, 4>::scale(make_float3(width, 1.0f, depth)));
+    add_glass_pane(Matrix<4, 4>::rotate(M_PI, make_float3(0.0f, 0.0f, 1.0f)) * Matrix<4, 4>::scale(make_float3(m_box_width, 1.0f, m_box_depth)));
 
     // Left wall
     add_glass_pane(
-        Matrix<4, 4>::translate(make_float3(-width, height, 0.0f)) *
+        Matrix<4, 4>::translate(make_float3(-m_box_width, m_box_height, 0.0f)) *
         Matrix<4, 4>::rotate(M_PI_2, make_float3(0.0f, 0.0f, 1.0f)) *
-        Matrix<4, 4>::scale(make_float3(height, 1.0f, width))
+        Matrix<4, 4>::scale(make_float3(m_box_height, 1.0f, m_box_width))
     );
 
     // Right wall
     add_glass_pane(
-        Matrix<4, 4>::translate(make_float3(width, height, 0.0f)) *
+        Matrix<4, 4>::translate(make_float3(m_box_width, m_box_height, 0.0f)) *
         Matrix<4, 4>::rotate(-M_PI_2, make_float3(0.0f, 0.0f, 1.0f)) *
-        Matrix<4, 4>::scale(make_float3(height, 1.0f, width))
+        Matrix<4, 4>::scale(make_float3(m_box_height, 1.0f, m_box_width))
     );
 
     // Far wall
     add_glass_pane(
-        Matrix<4, 4>::translate(make_float3(0.0f, height, -depth)) *
+        Matrix<4, 4>::translate(make_float3(0.0f, m_box_height, -m_box_depth)) *
         Matrix<4, 4>::rotate(-M_PI_2, make_float3(1.0f, 0.0f, 0.0f)) *
-        Matrix<4, 4>::scale(make_float3(width, 1.0f, height))
+        Matrix<4, 4>::scale(make_float3(m_box_width, 1.0f, m_box_height))
     );
 
     // Near wall
     add_glass_pane(
-        Matrix<4, 4>::translate(make_float3(0.0f, height, depth)) *
+        Matrix<4, 4>::translate(make_float3(0.0f, m_box_height, m_box_depth)) *
         Matrix<4, 4>::rotate(M_PI_2, make_float3(1.0f, 0.0f, 0.0f)) *
-        Matrix<4, 4>::scale(make_float3(width, 1.0f, height))
+        Matrix<4, 4>::scale(make_float3(m_box_width, 1.0f, m_box_height))
     );
 
   });

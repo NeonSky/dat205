@@ -52,6 +52,17 @@ private:
 
   // Water Simulation
   bool m_paused;
+  float m_box_width;
+  float m_box_height;
+  float m_box_depth;
+
+  optix::Acceleration m_water_acceleration;
+  optix::Program m_water_update_program;
+  optix::Buffer m_particles_buffer;
+  int m_particles_count;
+
+  void setup_water_simulation();
+  void update_water_simulation(float dt);
 
   // OptiX Rendering
   optix::Buffer m_output_buffer;

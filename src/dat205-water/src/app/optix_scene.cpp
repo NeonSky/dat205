@@ -23,6 +23,7 @@ void Application::update_scene() {
 
   const float dt = 0.02f;
 
+  update_water_simulation(dt);
   m_root_acceleration->markDirty();
 }
 

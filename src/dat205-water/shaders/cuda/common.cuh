@@ -37,3 +37,10 @@ struct PointLight {
   optix::float3 color;
   float intensity;
 };
+
+const float PARTICLE_RADIUS = 0.1f;
+
+struct Particle {
+  optix::float3 position;
+  optix::float3 velocity;
+};
