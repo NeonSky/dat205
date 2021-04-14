@@ -57,11 +57,17 @@ private:
   float m_box_depth;
 
   optix::Acceleration m_water_acceleration;
-  optix::Program m_water_update_program;
   optix::Buffer m_particles_buffer;
   int m_particles_count;
 
+  optix::Buffer m_hash_buffer;
+
   void setup_water_simulation();
+  void setup_water_particles();
+  void setup_water_geometry();
+  void setup_water_physics();
+
+  void reset_hash_table();
   void update_water_simulation(float dt);
 
   // OptiX Rendering

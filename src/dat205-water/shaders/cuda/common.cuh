@@ -38,9 +38,15 @@ struct PointLight {
   float intensity;
 };
 
-const float PARTICLE_RADIUS = 0.1f;
+// TODO: Remove
+const float PARTICLE_RADIUS       = 0.1f; // m
 
 struct Particle {
   optix::float3 position;
   optix::float3 velocity;
+  float density;
+  float pressure;
 };
+
+const unsigned int HASH_CELL_SIZE = 11;
+typedef unsigned int HashCell[HASH_CELL_SIZE]; // First element represents size
