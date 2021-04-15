@@ -17,11 +17,12 @@ void Application::setup_water_particles() {
   m_ctx->setRayGenerationProgram(1, m_ctx->createProgramFromPTXFile(ptxPath("water_simulation.cu"), "update"));
   m_ctx->setRayGenerationProgram(2, m_ctx->createProgramFromPTXFile(ptxPath("water_simulation.cu"), "update_nearest_neighbors"));
   m_ctx->setRayGenerationProgram(3, m_ctx->createProgramFromPTXFile(ptxPath("water_simulation.cu"), "update_particles_data"));
+  m_ctx->setRayGenerationProgram(4, m_ctx->createProgramFromPTXFile(ptxPath("water_simulation.cu"), "reset_nearest_neighbors"));
 
   float3 offset = make_float3(- 0.8f * m_box_width, PARTICLE_RADIUS + 0.5f, - 0.8f * m_box_depth);
 
-  // int side_length = 50; // A bit more than 10^5 particles
-  int side_length = 20; // the current prime is based on this
+  // int side_length = 50; // 125k particles
+  int side_length = 20;
   m_particles_count = side_length * side_length * side_length;
 
   std::random_device rd;
@@ -120,7 +121,7 @@ void Application::reset_hash_table() {
 
   std::vector<HashCell> hash_table(size);
   for (auto& cell : hash_table) {
-    std::fill(cell, cell + HASH_CELL_SIZE, 0);
+    cell[0] = 0;
   }
 
   memcpy(m_hash_buffer->map(), hash_table.data(), sizeof(HashCell) * hash_table.size());
@@ -130,8 +131,9 @@ void Application::reset_hash_table() {
 void Application::update_water_simulation(float dt) {
   m_ctx["dt"]->setFloat(0.02f);
 
-  reset_hash_table();
-  m_ctx->launch(2, 1);
+  // Reset hash table
+  m_ctx->launch(4, m_particles_count);
+  m_ctx->launch(2, m_particles_count);
 
   // Update particles' data
   m_ctx->launch(3, m_particles_count);

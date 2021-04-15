@@ -38,7 +38,7 @@ void Application::setup_optix_rendering() {
   }
 
   // Init renderer
-  m_ctx->setEntryPointCount(4); // 0 = render, 1 = water simulation, 2 = hash update, 3 = particles data update
+  m_ctx->setEntryPointCount(5); // 0 = render, 1 = water simulation, 2 = hash update, 3 = particles data update, 4 = reset neighbors
   m_ctx->setRayTypeCount(2);    // 0 = radiance, 1 = shadow
   m_ctx->setStackSize(2048);
 

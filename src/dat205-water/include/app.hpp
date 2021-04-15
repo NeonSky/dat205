@@ -67,8 +67,8 @@ private:
   void setup_water_geometry();
   void setup_water_physics();
 
-  void reset_hash_table();
   void update_water_simulation(float dt);
+  void reset_hash_table();
 
   // OptiX Rendering
   optix::Buffer m_output_buffer;

@@ -46,7 +46,8 @@ struct Particle {
   optix::float3 velocity;
   float density;
   float pressure;
+  unsigned int prev_hash_cell_index;
 };
 
-const unsigned int HASH_CELL_SIZE = 11;
+const unsigned int HASH_CELL_SIZE = 6;
 typedef unsigned int HashCell[HASH_CELL_SIZE]; // First element represents size

@@ -37,22 +37,24 @@ RT_FUNCTION uint hash(int3 pos) {
   return ((pos.x * p1) ^ (pos.y * p2) ^ (pos.z * p3)) % hash_table.size();
 }
 
-// TODO: this might be faster to do on the CPU
+RT_PROGRAM void reset_nearest_neighbors() {
+  Particle& p = particles_buffer[launch_index];
+  HashCell& cell = hash_table[p.prev_hash_cell_index];
+  cell[0] = 0; // only necessary to reset the count
+}
+
 RT_PROGRAM void update_nearest_neighbors() {
-  // rtPrintf("\n");
-  for (uint i = 0; i < particles_buffer.size(); i++) {
-    Particle& p = particles_buffer[i];
+  Particle& p = particles_buffer[launch_index];
 
-    int3 cell_position = make_int3(p.position / cell_size);
-    // rtPrintf("(%d, %d, %d) \n", cell_position.x, cell_position.y, cell_position.z);
-    HashCell& cell = hash_table[hash(cell_position)];
-    // rtPrintf("(%u)\n", hash(cell_position));
+  int3 cell_position = make_int3(p.position / cell_size);
+  uint cell_index = hash(cell_position);
+  HashCell& cell = hash_table[cell_index];
+  p.prev_hash_cell_index = cell_index;
 
-    uint particles_in_cell = cell[0];
-    if (particles_in_cell < HASH_CELL_SIZE-1) {
-      cell[0] += 1;
-      cell[particles_in_cell+1] = i;
-    }
+  uint particles_in_cell = cell[0];
+  if (particles_in_cell < HASH_CELL_SIZE-1) {
+    atomicAdd(&cell[0], 1);
+    cell[particles_in_cell+1] = launch_index;
   }
 }
 
@@ -240,7 +242,7 @@ RT_PROGRAM void update() {
 
     if (p.position.y <= y_min + PARTICLE_RADIUS) {
       p.position.y = y_min + PARTICLE_RADIUS;
-      p.velocity.y = 0.0f;
+      p.velocity.y = fmaxf(p.velocity.y, 0.0f);
       // p.velocity.y *= -0.7f;
     }
 }
