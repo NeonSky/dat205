@@ -39,7 +39,7 @@ struct PointLight {
 };
 
 // TODO: Remove
-const float PARTICLE_RADIUS       = 0.1f; // m
+const float PARTICLE_RADIUS = 0.1f; // m
 
 struct Particle {
   optix::float3 position;

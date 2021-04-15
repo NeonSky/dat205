@@ -13,14 +13,15 @@ void Application::setup_water_simulation() {
 }
 
 void Application::setup_water_particles() {
-  // Reserve entry point 1 for water simulation and entry point 2 for hash table updates
+  // Reserve entry point 1 for water simulation, entry point 2 for hash table updates, entry point 3 for updating particle data
   m_ctx->setRayGenerationProgram(1, m_ctx->createProgramFromPTXFile(ptxPath("water_simulation.cu"), "update"));
   m_ctx->setRayGenerationProgram(2, m_ctx->createProgramFromPTXFile(ptxPath("water_simulation.cu"), "update_nearest_neighbors"));
+  m_ctx->setRayGenerationProgram(3, m_ctx->createProgramFromPTXFile(ptxPath("water_simulation.cu"), "update_particles_data"));
 
   float3 offset = make_float3(- 0.8f * m_box_width, PARTICLE_RADIUS + 0.5f, - 0.8f * m_box_depth);
 
   // int side_length = 50; // A bit more than 10^5 particles
-  int side_length = 20;
+  int side_length = 20; // the current prime is based on this
   m_particles_count = side_length * side_length * side_length;
 
   std::random_device rd;
@@ -98,17 +99,18 @@ void Application::setup_water_physics() {
 
   // Some values from p51
 
-  float particle_radius = 0.1f; // [m]
+  float support_radius = 0.0457f; // [m]
   float fluid_volume = 1.0f; // [m^3]
   float rest_density = 998.29f; // [kg / m^3]
   float particle_mass = (fluid_volume / m_particles_count) * rest_density; // [kg]
 
-  m_ctx["cell_size"]->setFloat(2.0f * particle_radius);
-  m_ctx["support_radius"]->setFloat(0.0457f); // [m]
+  m_ctx["cell_size"]->setFloat(2.0f * support_radius);
+  m_ctx["support_radius"]->setFloat(support_radius); // [m]
 
   m_ctx["particle_mass"]->setFloat(particle_mass);
   m_ctx["rest_density"]->setFloat(998.29f);
   m_ctx["gass_stiffness"]->setFloat(3.0f);
+  m_ctx["viscosity"]->setFloat(3.5f);
 
 }
 
@@ -130,6 +132,9 @@ void Application::update_water_simulation(float dt) {
 
   reset_hash_table();
   m_ctx->launch(2, 1);
+
+  // Update particles' data
+  m_ctx->launch(3, m_particles_count);
 
   m_ctx->launch(1, m_particles_count);
   m_water_acceleration->markDirty();
