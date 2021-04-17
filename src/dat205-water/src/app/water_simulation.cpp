@@ -112,6 +112,8 @@ void Application::setup_water_physics() {
   m_ctx["rest_density"]->setFloat(998.29f);
   m_ctx["gass_stiffness"]->setFloat(3.0f);
   m_ctx["viscosity"]->setFloat(3.5f);
+  m_ctx["l_threshold"]->setFloat(7.065f);
+  m_ctx["surface_tension"]->setFloat(0.0728f);
 
 }
 

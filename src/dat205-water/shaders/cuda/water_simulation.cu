@@ -13,6 +13,8 @@ rtDeclareVariable(float, particle_mass, , );// [kg]
 rtDeclareVariable(float, rest_density, , ); // [kg / m^3]
 rtDeclareVariable(float, gass_stiffness, , ); // [Pa * m^3 / kg]
 rtDeclareVariable(float, viscosity, , ); // [Pa * s]
+rtDeclareVariable(float, l_threshold, , ); // []
+rtDeclareVariable(float, surface_tension, , ); // [N / m]
 
 rtDeclareVariable(float, y_min , , ); // The floor's y-level
 rtDeclareVariable(float, x_min , , ); // Left wall
@@ -93,9 +95,23 @@ RT_FUNCTION float poly6_kernel(float distance) {
 }
 
 // eq 4.4
-// RT_FUNCTION float poly6_kernel_gradient(float distance, float support_radius) {
-//   return -(945.0f / (32.0f * M_PIf * powf(support_radius, 9.0f))) * dist_vector * powf(powf(support_radius, 2.0f) - powf(distance, 2.0f), 2.0f)
-// }
+RT_FUNCTION float3 poly6_kernel_gradient(float3 dist_vec) {
+  float distance = optix::length(dist_vec);
+  if (distance >= support_radius) {
+    return make_float3(0.0f);
+  } else {
+    return -(945.0f / (32.0f * M_PIf * powf(support_radius, 9.0f))) * dist_vec * powf(powf(support_radius, 2.0f) - powf(distance, 2.0f), 2.0f);
+  }
+}
+
+// eq 4.5
+RT_FUNCTION float poly6_kernel_laplacian(float distance) {
+  if (distance >= support_radius) {
+    return 0.0f;
+  } else {
+    return -(945.0f / (32.0f * M_PIf * powf(support_radius, 9.0f))) * (powf(support_radius, 2.0f) - powf(distance, 2.0f)) * (3.0f * powf(support_radius, 2.0f) - 7.0f * powf(distance, 2.0f));
+  }
+}
 
 // eq 4.6
 RT_FUNCTION void update_density(Particle& p,
@@ -194,6 +210,37 @@ RT_FUNCTION float3 gravity_force(float particle_density) {
   return particle_density * make_float3(0.0f, g, 0.0f);
 }
 
+RT_FUNCTION float3 surface_tension_force(Particle& p,
+                                         unsigned int nn_count,
+                                         unsigned int* nn) {
+
+  // eq 4.28
+  float3 inward_surface_normal = make_float3(0.0f);
+  for (int i = 0; i < nn_count; i++) {
+    Particle& pi = particles_buffer[nn[i]];
+    float distance = optix::length(p.position - pi.position);
+
+    inward_surface_normal += (particle_mass / pi.density) * poly6_kernel_gradient(p.position - pi.position);
+  }
+
+  float normal_dist = optix::length(inward_surface_normal);
+  if (normal_dist < l_threshold) {
+    return make_float3(0.0f);
+  }
+
+  // eq 4.26
+  float laplacian = 0.0f;
+  for (int i = 0; i < nn_count; i++) {
+    Particle& pi = particles_buffer[nn[i]];
+    float distance = optix::length(p.position - pi.position);
+
+    laplacian += (particle_mass / pi.density) * poly6_kernel_laplacian(distance);
+  }
+  float3 force = -surface_tension * laplacian * inward_surface_normal / normal_dist;
+
+  return force;
+}
+
 RT_FUNCTION void euler_cromer(Particle& p, float3 force) {
     float3 acceleration = force / p.density; // eq 4.2
     p.velocity += dt * acceleration;
@@ -217,6 +264,7 @@ RT_PROGRAM void update() {
 
     // External forces
     tot_force += gravity_force(p.density);
+    tot_force += surface_tension_force(p, nn_count, nn);
 
     // Integrate forces over time
     euler_cromer(p, tot_force);
