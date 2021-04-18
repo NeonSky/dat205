@@ -8,6 +8,7 @@ rtDeclareVariable(float, g     , , ); // Gravity acceleration [m/s^2]
 
 rtDeclareVariable(float, cell_size, , ); // [m]
 rtDeclareVariable(float, support_radius, , ); // [m]
+rtDeclareVariable(float, particle_radius, , ); // [m]
 
 rtDeclareVariable(float, particle_mass, , );// [kg]
 rtDeclareVariable(float, rest_density, , ); // [kg / m^3]
@@ -15,6 +16,7 @@ rtDeclareVariable(float, gass_stiffness, , ); // [Pa * m^3 / kg]
 rtDeclareVariable(float, viscosity, , ); // [Pa * s]
 rtDeclareVariable(float, l_threshold, , ); // []
 rtDeclareVariable(float, surface_tension, , ); // [N / m]
+rtDeclareVariable(float, restitution, , ); // []
 
 rtDeclareVariable(float, y_min , , ); // The floor's y-level
 rtDeclareVariable(float, x_min , , ); // Left wall
@@ -53,10 +55,19 @@ RT_PROGRAM void update_nearest_neighbors() {
   HashCell& cell = hash_table[cell_index];
   p.prev_hash_cell_index = cell_index;
 
-  uint particles_in_cell = cell[0];
-  if (particles_in_cell < HASH_CELL_SIZE-1) {
-    atomicAdd(&cell[0], 1);
-    cell[particles_in_cell+1] = launch_index;
+  // Increase the particle count counter
+  uint prev_particle_count = atomicAdd(&cell[0], 1);
+  // rtPrintf("cell_index %u: %u \n", cell_index, prev_particle_count);
+
+  // Were we already at max?
+  if (prev_particle_count >= HASH_CELL_SIZE-1) {
+    // Revert
+    atomicMin(&cell[0], HASH_CELL_SIZE-1);
+  }
+  // Otherwise, we have now reserved a spot (prev_particle_count) in the hash cell
+  else {
+    // rtPrintf("launch_index %u got (%d, %d, %d) with hash %u and prev count %u \n", launch_index, cell_position.x, cell_position.y, cell_position.z, cell_index, prev_particle_count);
+    cell[1 + prev_particle_count] = launch_index;
   }
 }
 
@@ -71,15 +82,22 @@ RT_FUNCTION void nearest_neighbor_search(Particle& p,
     for (int y = -1; y <= 1; y++) {
       for (int z = -1; z <= 1; z++) {
         int3 cell_position = center_cell_position + make_int3(x, y, z);
-        HashCell& cell = hash_table[hash(cell_position)];
+        uint cell_index = hash(cell_position);
+        HashCell& cell = hash_table[cell_index];
 
         uint particles_in_cell = cell[0];
+
+        // if (p.position.x == 0.0f && p.position.y == 1.0f && p.position.z == 0.0f && particles_in_cell > 0) {
+          // rtPrintf("Neighbor cell (%d, %d, %d) with hash %u contains %u particles \n", cell_position.x, cell_position.y, cell_position.z, cell_index, particles_in_cell);
+
         for (int i = 1; i <= particles_in_cell; i++) {
           if (cell[i] != launch_index) {
+            // rtPrintf("Neighbor with index %u \n", cell[i]);
             nn[nn_count] = cell[i];
             nn_count += 1;
           }
         }
+        // }
       }
     }
   }
@@ -161,13 +179,15 @@ RT_FUNCTION float3 pressure_kernel_gradient(float3 dist_vec) {
     // We'll treat this case as the particles being in the same position.
     // Thus, they won't affect each other in any direction.
     // This is mostly to avoid division by zero.
-    return make_float3(0.0f);
+    // return make_float3(0.0f);
+    return -(45.0f / (M_PIf * powf(support_radius, 6.0f))) * optix::normalize(make_float3(1.0f)) * powf(support_radius - distance, 2.0f);
   } else {
     return -(45.0f / (M_PIf * powf(support_radius, 6.0f))) * (dist_vec / distance) * powf(support_radius - distance, 2.0f);
   }
 }
 
-// eq 4.11
+// eq 4.11 TODO: remove?
+// eq 4.10
 RT_FUNCTION float3 pressure_force(Particle& p,
                                   unsigned int nn_count,
                                   unsigned int* nn) {
@@ -176,9 +196,11 @@ RT_FUNCTION float3 pressure_force(Particle& p,
     Particle& pi = particles_buffer[nn[i]];
     float3 dist_vec = p.position - pi.position;
 
-    force += particle_mass * ((p.pressure + pi.pressure) / (2.0f * pi.density)) * pressure_kernel_gradient(dist_vec);
+    force += particle_mass * (p.pressure / powf(p.density, 2.0f) + pi.pressure / powf(pi.density, 2.0f)) * pressure_kernel_gradient(dist_vec);
+    // force += particle_mass * ((p.pressure + pi.pressure) / (2.0f * pi.density)) * pressure_kernel_gradient(dist_vec);
   }
-  force *= -1.0f;
+  force *= -1.0f * p.density;
+  // rtPrintf("Particle at (%f, %f, %f) got force (%f, %f, %f) and has density %f and pressure %f \n", p.position.x, p.position.y, p.position.z, force.x, force.y, force.z, p.density, p.pressure);
   return force;
 }
 
@@ -218,7 +240,6 @@ RT_FUNCTION float3 surface_tension_force(Particle& p,
   float3 inward_surface_normal = make_float3(0.0f);
   for (int i = 0; i < nn_count; i++) {
     Particle& pi = particles_buffer[nn[i]];
-    float distance = optix::length(p.position - pi.position);
 
     inward_surface_normal += (particle_mass / pi.density) * poly6_kernel_gradient(p.position - pi.position);
   }
@@ -229,14 +250,15 @@ RT_FUNCTION float3 surface_tension_force(Particle& p,
   }
 
   // eq 4.26
-  float laplacian = 0.0f;
+  float laplacian = (particle_mass / p.density) * poly6_kernel_laplacian(0.0f);
   for (int i = 0; i < nn_count; i++) {
     Particle& pi = particles_buffer[nn[i]];
     float distance = optix::length(p.position - pi.position);
 
     laplacian += (particle_mass / pi.density) * poly6_kernel_laplacian(distance);
   }
-  float3 force = -surface_tension * laplacian * inward_surface_normal / normal_dist;
+
+  float3 force = -surface_tension * laplacian * (inward_surface_normal / normal_dist);
 
   return force;
 }
@@ -245,6 +267,70 @@ RT_FUNCTION void euler_cromer(Particle& p, float3 force) {
     float3 acceleration = force / p.density; // eq 4.2
     p.velocity += dt * acceleration;
     p.position += dt * p.velocity;
+}
+
+RT_FUNCTION void collision_detection(Particle& p) {
+
+  // Early exit
+  if (x_min <= p.position.x && p.position.x <= x_max &&
+      y_min <= p.position.y &&
+      z_min <= p.position.z && p.position.z <= z_max) {
+    return;
+  }
+
+  float3 contact_point = p.position;
+  contact_point.x = min(x_max, max(x_min, p.position.x));
+  contact_point.y = max(y_min, p.position.y);
+  contact_point.z = min(z_max, max(z_min, p.position.z));
+
+  char maxComponent = 'y';
+  float maxDepth    = y_min - p.position.y;
+
+  if (maxDepth < x_min - p.position.x) {
+      maxComponent = 'x';
+      maxDepth = x_min - p.position.x;
+  } else if (maxDepth < p.position.x - x_max) {
+      maxComponent = 'x';
+      maxDepth = p.position.x - x_max;
+  }
+
+  if (maxDepth < z_min - p.position.z) {
+      maxComponent = 'z';
+      maxDepth = z_min - p.position.z;
+  } else if (maxDepth < p.position.z - z_max) {
+      maxComponent = 'z';
+      maxDepth = p.position.z - z_max;
+  }
+
+  float3 surface_normal = make_float3(0.0f);
+  switch (maxComponent) {
+    case 'x':
+      if (p.position.x < x_min) {
+          surface_normal = make_float3(1.0f,  0.0f,  0.0f);
+      }
+      else if (p.position.x > x_max) {
+          surface_normal = make_float3(-1.0f,  0.0f,  0.0f);
+      }
+      break;
+    case 'y':
+      if (p.position.y < y_min) {
+          surface_normal = make_float3(0.0f,  1.0f,  0.0f);
+      }
+      break;
+    case 'z':
+      if (p.position.z < z_min) {
+          surface_normal = make_float3(0.0f,  0.0f,  1.0f);
+      }
+      else if (p.position.z > z_max) {
+          surface_normal = make_float3(0.0f,  0.0f, -1.0f);
+      }
+      break;
+  }
+
+  // eq 4.58
+  float penetration_depth = optix::length(p.position - contact_point);
+  p.velocity = p.velocity - (1.0f + restitution * penetration_depth / (dt * optix::length(p.velocity))) * optix::dot(p.velocity, surface_normal) * surface_normal;
+  p.position = contact_point;
 }
 
 // p54
@@ -266,31 +352,19 @@ RT_PROGRAM void update() {
     tot_force += gravity_force(p.density);
     tot_force += surface_tension_force(p, nn_count, nn);
 
+    // if (p.position.x == 0.0f && p.position.y == 1.027f && p.position.z == 0.0f) {
+    //   // rtPrintf("Particle at (%f, %f, %f) has %d neighbors \n", p.position.x, p.position.y, p.position.z, nn_count);
+    //   // for (int i = 0; i < nn_count; i++) {
+    //   //   Particle& pi = particles_buffer[nn[i]];
+    //   //   rtPrintf("Particle at (%f, %f, %f) has neighbor (%f, %f, %f) \n", p.position.x, p.position.y, p.position.z, pi.position.x, pi.position.y, pi.position.z);
+    //   // }
+    //   rtPrintf("Particle at (%f, %f, %f) has force (%f, %f, %f) \n", p.position.x, p.position.y, p.position.z, tot_force.x, tot_force.y, tot_force.z);
+    // }
+    // rtPrintf("Particle at (%f, %f, %f) has force (%f, %f, %f) \n", p.position.x, p.position.y, p.position.z, tot_force.x, tot_force.y, tot_force.z);
+
     // Integrate forces over time
     euler_cromer(p, tot_force);
 
-    // TODO: Remove
-    if (p.position.x <= x_min + PARTICLE_RADIUS) {
-      p.position.x = x_min + PARTICLE_RADIUS;
-      p.velocity.x *= -0.5f;
-    }
-    else if (p.position.x >= x_max - PARTICLE_RADIUS) {
-      p.position.x = x_max - PARTICLE_RADIUS;
-      p.velocity.x *= -0.5f;
-    }
-
-    if (p.position.z <= z_min + PARTICLE_RADIUS) {
-      p.position.z = z_min + PARTICLE_RADIUS;
-      p.velocity.z *= -0.5f;
-    }
-    else if (p.position.z >= z_max - PARTICLE_RADIUS) {
-      p.position.z = z_max - PARTICLE_RADIUS;
-      p.velocity.z *= -0.5f;
-    }
-
-    if (p.position.y <= y_min + PARTICLE_RADIUS) {
-      p.position.y = y_min + PARTICLE_RADIUS;
-      p.velocity.y = fmaxf(p.velocity.y, 0.0f);
-      // p.velocity.y *= -0.7f;
-    }
+    // Handle potential collisions
+    collision_detection(p);
 }

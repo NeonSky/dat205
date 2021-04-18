@@ -19,11 +19,13 @@ void Application::setup_water_particles() {
   m_ctx->setRayGenerationProgram(3, m_ctx->createProgramFromPTXFile(ptxPath("water_simulation.cu"), "update_particles_data"));
   m_ctx->setRayGenerationProgram(4, m_ctx->createProgramFromPTXFile(ptxPath("water_simulation.cu"), "reset_nearest_neighbors"));
 
-  float3 offset = make_float3(- 0.8f * m_box_width, PARTICLE_RADIUS + 0.5f, - 0.8f * m_box_depth);
+  m_particles_radius = 0.0135f;
 
   // int side_length = 50; // 125k particles
-  int side_length = 20;
+  int side_length = 10;
   m_particles_count = side_length * side_length * side_length;
+
+  float3 offset = make_float3(0.0f, 1.0f, 0.0f) - make_float3((side_length / 2) * 2.0f * m_particles_radius);
 
   std::random_device rd;
   std::mt19937 rng(rd());
@@ -34,8 +36,9 @@ void Application::setup_water_particles() {
     for (int y = 0; y < side_length; y++) {
       for (int z = 0; z < side_length; z++) {
         Particle& p = particles[x * side_length * side_length + y * side_length + z];
-        p.position = offset + 2.0f * PARTICLE_RADIUS * make_float3(x, y, z);
-        p.velocity = make_float3(dist(rng), dist(rng), dist(rng));
+        p.position = offset + 2.0f * m_particles_radius * make_float3(x, y, z);
+        p.velocity = make_float3(0.0f);
+        // p.velocity = make_float3(dist(rng), dist(rng), dist(rng));
       }
     }
   }
@@ -49,7 +52,8 @@ void Application::setup_water_particles() {
   m_particles_buffer->unmap();
 
   // eq 5.4: nextPrime(2 * m_particles_count)
-  unsigned int hash_table_size = 16001; // Prime manually picked from: http://compoasso.free.fr/primelistweb/page/prime/liste_online_en.php
+  unsigned int hash_table_size = 16001; // Based on 20^3. Prime manually picked from: http://compoasso.free.fr/primelistweb/page/prime/liste_online_en.php
+  // unsigned int hash_table_size = 59; // Based on 3^3
 
   m_hash_buffer = m_ctx->createBuffer(RT_BUFFER_INPUT_OUTPUT);
   m_hash_buffer->setFormat(RT_FORMAT_USER);
@@ -88,6 +92,7 @@ void Application::setup_water_geometry() {
   m_root_group->addChild(geometry_group);
 }
 
+#include <iostream>
 void Application::setup_water_physics() {
   // Boundaries
   m_ctx["y_min"]->setFloat(0.0f);
@@ -101,19 +106,27 @@ void Application::setup_water_physics() {
   // Some values from p51
 
   float support_radius = 0.0457f; // [m]
-  float fluid_volume = 1.0f; // [m^3]
+
+  // eq 5.14
+  // float support_radius = ???; // [m]
+
+  float fluid_volume = 0.02f; // [m^3]
   float rest_density = 998.29f; // [kg / m^3]
   float particle_mass = (fluid_volume / m_particles_count) * rest_density; // [kg]
 
-  m_ctx["cell_size"]->setFloat(2.0f * support_radius);
+  m_ctx["cell_size"]->setFloat(support_radius); // [m], see eq 5.5
   m_ctx["support_radius"]->setFloat(support_radius); // [m]
+  m_ctx["particle_radius"]->setFloat(m_particles_radius);
 
   m_ctx["particle_mass"]->setFloat(particle_mass);
-  m_ctx["rest_density"]->setFloat(998.29f);
+  m_ctx["rest_density"]->setFloat(rest_density);
   m_ctx["gass_stiffness"]->setFloat(3.0f);
   m_ctx["viscosity"]->setFloat(3.5f);
+  // float x = (m_particles_count / fluid_volume) * (4.0f / 3.0f) * M_PI * powf(support_radius, 3.0f); // eq 5.14
+  // m_ctx["l_threshold"]->setFloat(sqrt(rest_density / x)); // eq 5.17
   m_ctx["l_threshold"]->setFloat(7.065f);
   m_ctx["surface_tension"]->setFloat(0.0728f);
+  m_ctx["restitution"]->setFloat(0.5f);
 
 }
 
@@ -131,7 +144,7 @@ void Application::reset_hash_table() {
 }
 
 void Application::update_water_simulation(float dt) {
-  m_ctx["dt"]->setFloat(0.02f);
+  m_ctx["dt"]->setFloat(0.01f);
 
   // Reset hash table
   m_ctx->launch(4, m_particles_count);
@@ -142,4 +155,5 @@ void Application::update_water_simulation(float dt) {
 
   m_ctx->launch(1, m_particles_count);
   m_water_acceleration->markDirty();
+  // m_paused = true;
 }

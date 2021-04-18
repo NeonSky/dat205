@@ -4,6 +4,15 @@
 rtDeclareVariable(optix::Ray, ray, rtCurrentRay , );
 rtDeclareVariable(RayPayload, payload, rtPayload, );
 
+// The distance from the ray origin to where the intersection was detected.
+rtDeclareVariable(float, ray_t, rtIntersectionDistance, );
+
+// TODO: Replace with eq 5.19 (or possibly 5.20)
+rtDeclareVariable(float, particle_radius, , ); // [m]
+
+// Point lights in the scene.
+rtBuffer<PointLight> lights;
+
 // Simulated particles.
 rtBuffer<Particle> particles_buffer;
 
@@ -18,7 +27,10 @@ RT_PROGRAM void closest_hit() {
   // const float speed = optix::length(attr_particle.velocity);
   // payload.radiance = make_float3(speed, speed, 1.0f);
 
-  payload.radiance = make_float3(0.0f, 0.0f, 1.0f);
+  float3 hit = ray.origin + ray_t * ray.direction;
+  float3 n = optix::normalize(hit - attr_particle.position);
+  float3 wi = optix::normalize(lights[0].position - hit);
+  payload.radiance = make_float3(0.0f, 0.0f, 1.0f) * max(optix::dot(n, wi), 0.2f);
   // payload.radiance = attr_particle.velocity;
 }
 
@@ -28,8 +40,8 @@ RT_PROGRAM void bounding_box(int primitive_index, float result[6]) {
   const float3 pos = particles_buffer[primitive_index].position;
 
   // Enclose the particle with a cube.
-  aabb->m_min = pos - make_float3(PARTICLE_RADIUS);
-  aabb->m_max = pos + make_float3(PARTICLE_RADIUS);
+  aabb->m_min = pos - make_float3(particle_radius);
+  aabb->m_max = pos + make_float3(particle_radius);
 }
 
 RT_PROGRAM void ray_intersection(int primitive_index) {
@@ -46,7 +58,7 @@ RT_PROGRAM void ray_intersection(int primitive_index) {
   const float3 o = ray.origin;
   const float3 d = ray.direction;
   const float3 c = particles_buffer[primitive_index].position;
-  const float r = PARTICLE_RADIUS;
+  const float r = particle_radius;
 
   // Compute only once
   const float oc_d = optix::dot(o - c, d);

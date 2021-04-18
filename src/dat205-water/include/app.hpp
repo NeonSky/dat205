@@ -59,6 +59,7 @@ private:
   optix::Acceleration m_water_acceleration;
   optix::Buffer m_particles_buffer;
   int m_particles_count;
+  float m_particles_radius;
 
   optix::Buffer m_hash_buffer;
 
