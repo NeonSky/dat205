@@ -22,7 +22,7 @@ void Application::setup_water_particles() {
   m_particles_radius = 0.0135f;
 
   // int side_length = 50; // 125k particles
-  int side_length = 10;
+  int side_length = 20; // 8k particles
   m_particles_count = side_length * side_length * side_length;
 
   float3 offset = make_float3(0.0f, 1.0f, 0.0f) - make_float3((side_length / 2) * 2.0f * m_particles_radius);
@@ -38,7 +38,6 @@ void Application::setup_water_particles() {
         Particle& p = particles[x * side_length * side_length + y * side_length + z];
         p.position = offset + 2.0f * m_particles_radius * make_float3(x, y, z);
         p.velocity = make_float3(0.0f);
-        // p.velocity = make_float3(dist(rng), dist(rng), dist(rng));
       }
     }
   }
@@ -110,7 +109,7 @@ void Application::setup_water_physics() {
   // eq 5.14
   // float support_radius = ???; // [m]
 
-  float fluid_volume = 0.02f; // [m^3]
+  float fluid_volume = 0.1f; // [m^3]
   float rest_density = 998.29f; // [kg / m^3]
   float particle_mass = (fluid_volume / m_particles_count) * rest_density; // [kg]
 

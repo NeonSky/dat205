@@ -57,7 +57,6 @@ RT_PROGRAM void update_nearest_neighbors() {
 
   // Increase the particle count counter
   uint prev_particle_count = atomicAdd(&cell[0], 1);
-  // rtPrintf("cell_index %u: %u \n", cell_index, prev_particle_count);
 
   // Were we already at max?
   if (prev_particle_count >= HASH_CELL_SIZE-1) {
@@ -66,7 +65,6 @@ RT_PROGRAM void update_nearest_neighbors() {
   }
   // Otherwise, we have now reserved a spot (prev_particle_count) in the hash cell
   else {
-    // rtPrintf("launch_index %u got (%d, %d, %d) with hash %u and prev count %u \n", launch_index, cell_position.x, cell_position.y, cell_position.z, cell_index, prev_particle_count);
     cell[1 + prev_particle_count] = launch_index;
   }
 }
@@ -86,13 +84,8 @@ RT_FUNCTION void nearest_neighbor_search(Particle& p,
         HashCell& cell = hash_table[cell_index];
 
         uint particles_in_cell = cell[0];
-
-        // if (p.position.x == 0.0f && p.position.y == 1.0f && p.position.z == 0.0f && particles_in_cell > 0) {
-          // rtPrintf("Neighbor cell (%d, %d, %d) with hash %u contains %u particles \n", cell_position.x, cell_position.y, cell_position.z, cell_index, particles_in_cell);
-
         for (int i = 1; i <= particles_in_cell; i++) {
           if (cell[i] != launch_index) {
-            // rtPrintf("Neighbor with index %u \n", cell[i]);
             nn[nn_count] = cell[i];
             nn_count += 1;
           }
@@ -186,7 +179,6 @@ RT_FUNCTION float3 pressure_kernel_gradient(float3 dist_vec) {
   }
 }
 
-// eq 4.11 TODO: remove?
 // eq 4.10
 RT_FUNCTION float3 pressure_force(Particle& p,
                                   unsigned int nn_count,
@@ -197,10 +189,8 @@ RT_FUNCTION float3 pressure_force(Particle& p,
     float3 dist_vec = p.position - pi.position;
 
     force += particle_mass * (p.pressure / powf(p.density, 2.0f) + pi.pressure / powf(pi.density, 2.0f)) * pressure_kernel_gradient(dist_vec);
-    // force += particle_mass * ((p.pressure + pi.pressure) / (2.0f * pi.density)) * pressure_kernel_gradient(dist_vec);
   }
   force *= -1.0f * p.density;
-  // rtPrintf("Particle at (%f, %f, %f) got force (%f, %f, %f) and has density %f and pressure %f \n", p.position.x, p.position.y, p.position.z, force.x, force.y, force.z, p.density, p.pressure);
   return force;
 }
 
@@ -351,16 +341,6 @@ RT_PROGRAM void update() {
     // External forces
     tot_force += gravity_force(p.density);
     tot_force += surface_tension_force(p, nn_count, nn);
-
-    // if (p.position.x == 0.0f && p.position.y == 1.027f && p.position.z == 0.0f) {
-    //   // rtPrintf("Particle at (%f, %f, %f) has %d neighbors \n", p.position.x, p.position.y, p.position.z, nn_count);
-    //   // for (int i = 0; i < nn_count; i++) {
-    //   //   Particle& pi = particles_buffer[nn[i]];
-    //   //   rtPrintf("Particle at (%f, %f, %f) has neighbor (%f, %f, %f) \n", p.position.x, p.position.y, p.position.z, pi.position.x, pi.position.y, pi.position.z);
-    //   // }
-    //   rtPrintf("Particle at (%f, %f, %f) has force (%f, %f, %f) \n", p.position.x, p.position.y, p.position.z, tot_force.x, tot_force.y, tot_force.z);
-    // }
-    // rtPrintf("Particle at (%f, %f, %f) has force (%f, %f, %f) \n", p.position.x, p.position.y, p.position.z, tot_force.x, tot_force.y, tot_force.z);
 
     // Integrate forces over time
     euler_cromer(p, tot_force);

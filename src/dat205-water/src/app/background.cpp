@@ -46,9 +46,9 @@ void Application::create_background_geometry() {
       m_root_group->addChild(t);
     };
 
-    m_box_width  = 0.15f;
+    m_box_width  = 0.5f;
     m_box_height = 0.7f;
-    m_box_depth  = 0.15f;
+    m_box_depth  = 0.5f;
 
     // Floor
     add_glass_pane(Matrix<4, 4>::rotate(M_PI, make_float3(0.0f, 0.0f, 1.0f)) * Matrix<4, 4>::scale(make_float3(m_box_width, 1.0f, m_box_depth)));
