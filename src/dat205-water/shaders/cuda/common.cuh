@@ -10,7 +10,7 @@
 
 #include "device_include/random.h"
 
-#define EPSILON 0.1f
+#define EPSILON 0.001f
 
 // Ensures that helper functions are inline.
 #define RT_FUNCTION __forceinline__ __device__

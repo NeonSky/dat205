@@ -30,6 +30,7 @@ Application::Application(ApplicationCreateInfo create_info) {
 
   // Water Simulation
   setup_water_simulation();
+  update_water_simulation(0.0f);
 
   // Verify correctness of setup and perform dummy launch to build everything.
   m_ctx->validate();

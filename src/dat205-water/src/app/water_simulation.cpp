@@ -21,7 +21,6 @@ void Application::setup_water_particles() {
 
   m_particles_radius = 0.0135f;
 
-  // int side_length = 50; // 125k particles
   int side_length = 20; // 8k particles
   m_particles_count = side_length * side_length * side_length;
 
@@ -90,14 +89,14 @@ void Application::setup_water_geometry() {
   m_root_group->addChild(geometry_group);
 }
 
-#include <iostream>
 void Application::setup_water_physics() {
   // Boundaries
-  m_ctx["y_min"]->setFloat(0.0f + m_particles_radius);
-  m_ctx["x_min"]->setFloat(-m_box_width + m_particles_radius);
-  m_ctx["x_max"]->setFloat(m_box_width - m_particles_radius);
-  m_ctx["z_min"]->setFloat(-m_box_depth + m_particles_radius);
-  m_ctx["z_max"]->setFloat(m_box_depth - m_particles_radius);
+  float margin = m_particles_radius + 0.01f;
+  m_ctx["y_min"]->setFloat(0.0f + margin);
+  m_ctx["x_min"]->setFloat(-m_box_width + margin);
+  m_ctx["x_max"]->setFloat(m_box_width - margin);
+  m_ctx["z_min"]->setFloat(-m_box_depth + margin);
+  m_ctx["z_max"]->setFloat(m_box_depth - margin);
 
   m_ctx["g"]->setFloat(-9.82f);
 
@@ -136,7 +135,7 @@ void Application::reset_hash_table() {
 }
 
 void Application::update_water_simulation(float dt) {
-  m_ctx["dt"]->setFloat(0.01f);
+  m_ctx["dt"]->setFloat(dt);
 
   // Reset hash table
   m_ctx->launch(4, m_particles_count);
@@ -147,5 +146,4 @@ void Application::update_water_simulation(float dt) {
 
   m_ctx->launch(1, m_particles_count);
   m_water_acceleration->markDirty();
-  // m_paused = true;
 }
