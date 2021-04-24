@@ -90,7 +90,6 @@ RT_FUNCTION void nearest_neighbor_search(Particle& p,
             nn_count += 1;
           }
         }
-        // }
       }
     }
   }

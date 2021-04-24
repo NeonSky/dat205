@@ -7,7 +7,7 @@ rtDeclareVariable(RayPayload, payload, rtPayload, );
 // The distance from the ray origin to where the intersection was detected.
 rtDeclareVariable(float, ray_t, rtIntersectionDistance, );
 
-// TODO: Replace with eq 5.19 (or possibly 5.20)
+// Ideally, we would use eq 5.20, but that would be too slow
 rtDeclareVariable(float, particle_radius, , ); // [m]
 
 // Point lights in the scene.

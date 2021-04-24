@@ -52,7 +52,6 @@ void Application::setup_water_particles() {
 
   // eq 5.4: nextPrime(2 * m_particles_count)
   unsigned int hash_table_size = 16001; // Based on 20^3. Prime manually picked from: http://compoasso.free.fr/primelistweb/page/prime/liste_online_en.php
-  // unsigned int hash_table_size = 59; // Based on 3^3
 
   m_hash_buffer = m_ctx->createBuffer(RT_BUFFER_INPUT_OUTPUT);
   m_hash_buffer->setFormat(RT_FORMAT_USER);
@@ -94,23 +93,19 @@ void Application::setup_water_geometry() {
 #include <iostream>
 void Application::setup_water_physics() {
   // Boundaries
-  m_ctx["y_min"]->setFloat(0.0f);
-  m_ctx["x_min"]->setFloat(-m_box_width);
-  m_ctx["x_max"]->setFloat(m_box_width);
-  m_ctx["z_min"]->setFloat(-m_box_depth);
-  m_ctx["z_max"]->setFloat(m_box_depth);
+  m_ctx["y_min"]->setFloat(0.0f + m_particles_radius);
+  m_ctx["x_min"]->setFloat(-m_box_width + m_particles_radius);
+  m_ctx["x_max"]->setFloat(m_box_width - m_particles_radius);
+  m_ctx["z_min"]->setFloat(-m_box_depth + m_particles_radius);
+  m_ctx["z_max"]->setFloat(m_box_depth - m_particles_radius);
 
   m_ctx["g"]->setFloat(-9.82f);
 
   // Some values from p51
-
   float support_radius = 0.0457f; // [m]
-
-  // eq 5.14
-  // float support_radius = ???; // [m]
-
-  float fluid_volume = 0.1f; // [m^3]
+  float fluid_volume = 0.15f; // [m^3]
   float rest_density = 998.29f; // [kg / m^3]
+
   float particle_mass = (fluid_volume / m_particles_count) * rest_density; // [kg]
 
   m_ctx["cell_size"]->setFloat(support_radius); // [m], see eq 5.5
@@ -121,8 +116,6 @@ void Application::setup_water_physics() {
   m_ctx["rest_density"]->setFloat(rest_density);
   m_ctx["gass_stiffness"]->setFloat(3.0f);
   m_ctx["viscosity"]->setFloat(3.5f);
-  // float x = (m_particles_count / fluid_volume) * (4.0f / 3.0f) * M_PI * powf(support_radius, 3.0f); // eq 5.14
-  // m_ctx["l_threshold"]->setFloat(sqrt(rest_density / x)); // eq 5.17
   m_ctx["l_threshold"]->setFloat(7.065f);
   m_ctx["surface_tension"]->setFloat(0.0728f);
   m_ctx["restitution"]->setFloat(0.5f);
