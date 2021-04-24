@@ -1,7 +1,7 @@
 #pragma once
 
 // 1 when debugging, 0 for prod.
-#define USE_DEBUG_EXCEPTIONS 1
+#define USE_DEBUG_EXCEPTIONS 0
 
 #include <optix.h>
 #include <optixu/optixu_aabb_namespace.h>

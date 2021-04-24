@@ -100,6 +100,5 @@ void Application::create_scene_lights() {
   memcpy(buffer->map(), lights.data(), sizeof(PointLight) * lights.size());
   buffer->unmap();
 
-  m_ctx["ambient_light_color"]->setFloat(1.0f, 1.0f, 1.0f);
   m_ctx["lights"]->set(buffer);
 }

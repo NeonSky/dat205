@@ -11,7 +11,6 @@ rtDeclareVariable(RayPayload, payload, rtPayload, );
 rtDeclareVariable(float, ray_t, rtIntersectionDistance, );
 
 // Point lights in the scene.
-rtDeclareVariable(float3, ambient_light_color, , );
 rtBuffer<PointLight> lights;
 
 // Properties of the hit surface's material.

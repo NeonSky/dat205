@@ -43,8 +43,10 @@ void Application::setup_optix_rendering() {
   m_ctx->setStackSize(2048);
 
   // Debugging settings
+  #if USE_DEBUG_EXCEPTIONS
   m_ctx->setPrintEnabled(true);
   m_ctx->setExceptionEnabled(RT_EXCEPTION_ALL, true);
+  #endif
 
   m_output_buffer = m_ctx->createBufferFromGLBO(RT_BUFFER_OUTPUT, m_output_pbo);
   m_output_buffer->setFormat(RT_FORMAT_FLOAT4); // RGBA32F
