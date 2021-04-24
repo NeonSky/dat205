@@ -1,5 +1,7 @@
 #include "app.hpp"
 
+#include <chrono>
+
 Application::Application(ApplicationCreateInfo create_info) {
   // Window
   m_window = create_info.window;
@@ -38,6 +40,10 @@ Application::Application(ApplicationCreateInfo create_info) {
 };
 
 void Application::run() {
+  auto start = std::chrono::system_clock::now();
+  unsigned int prev_fps = 0;
+  unsigned int frame_counter = 0;
+
   while (!glfwWindowShouldClose(m_window)) {
     glfwPollEvents();
     handle_mouse_input();
@@ -48,10 +54,21 @@ void Application::run() {
     update_scene();
 
     render_scene();
-    render_gui();
+    render_gui(prev_fps);
 
     // Swap the front and back buffers of the default (double-buffered) framebuffer.
     glfwSwapBuffers(m_window);
+
+    frame_counter++;
+
+    auto now = std::chrono::system_clock::now();
+    std::chrono::duration<double> elapsed_seconds = now - start;
+
+    if (elapsed_seconds.count() > 1.0) {
+      prev_fps = frame_counter;
+      frame_counter = 0;
+      start = now;
+    }
   }
   m_ctx->destroy();
 }

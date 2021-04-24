@@ -1,15 +1,14 @@
 #include "app.hpp"
 
-void Application::render_gui() {
+void Application::render_gui(unsigned int fps) {
   render_gui_frame([&]() {
     if (m_show_gui) {
       ImGui::Begin("DAT205");
-      {
-        if (m_paused) {
-          ImGui::Text("Simulation paused.");
-        } else {
-          ImGui::Text("Simulation active.");
-        }
+      ImGui::Text("FPS: %u", fps);
+      if (m_paused) {
+        ImGui::Text("Simulation paused.");
+      } else {
+        ImGui::Text("Simulation active.");
       }
       ImGui::End();
     }

@@ -42,7 +42,7 @@ private:
   // GUI
   bool m_show_gui;
 
-  void render_gui();
+  void render_gui(unsigned int fps);
 
   // IO
   void handle_mouse_input();
@@ -56,8 +56,6 @@ private:
   float m_player1_velocity;
   float m_player2_velocity;
   bool m_paused;
-
-  // Water Simulation
 
   // OptiX Rendering
   optix::Buffer m_output_buffer;

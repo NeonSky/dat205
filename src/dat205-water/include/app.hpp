@@ -41,7 +41,7 @@ private:
   // GUI
   bool m_show_gui;
 
-  void render_gui();
+  void render_gui(unsigned int fps);
 
   // IO
   void handle_mouse_input();
