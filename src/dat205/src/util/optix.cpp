@@ -7,6 +7,7 @@
 using namespace optix;
 
 std::string ptxPath(std::string const& cuda_file) {
+  // This is how compiled CUDA shaders will be stored.
   return std::string(sutil::samplesPTXDir()) + std::string("/") + "dat205" + std::string("_generated_") + cuda_file + std::string(".ptx");
 }
 
@@ -22,7 +23,9 @@ void run_unsafe_optix_code(std::function<void()> f) {
   #endif
 }
 
+// Configures vertex and index buffer data for the given accelartion structure.
 void set_acceleration_properties(Acceleration acceleration) {
+
   // vertex_buffer_name specifies the name of the vertex buffer variable for underlying geometry, containing float3 vertices.
   // vertex_buffer_stride is used to define the offset between two vertices in the buffer, given in bytes.
   // The default stride is zero, which assumes that the vertices are tightly packed.
@@ -45,6 +48,7 @@ void unregister_buffer(Buffer buffer, std::function<void()> f) {
 
 OptixScene::OptixScene(Context& ctx) : m_ctx(ctx) {
   run_unsafe_optix_code([&]() {
+    // These shaders can be used for any triangle-based geometry.
     m_boundingbox_triangle_indexed  = m_ctx->createProgramFromPTXFile(ptxPath("boundingbox_triangle_indexed.cu"),  "boundingbox_triangle_indexed");
     m_intersection_triangle_indexed = m_ctx->createProgramFromPTXFile(ptxPath("intersection_triangle_indexed.cu"), "intersection_triangle_indexed");
   });
@@ -59,65 +63,68 @@ Geometry OptixScene::create_cuboid(float width, float height, float depth) {
 
   std::vector<VertexData> vertices;
 
+  // Creates a cuboid face (i.e. quad).
+  //
   // The corner is assumed to be the bot-left corner of the face.
   auto add_face = [&vertices](float3 corner, float3 right, float3 up) {
     VertexData v;
     v.normal = cross(right, up);
     v.tangent = right;
 
-    // Left-bot
+    // Bottom-left Corner
     v.position = corner;
     vertices.push_back(v);
 
-    // Right-bot
+    // Bottom-right Corner
     v.position = corner + right;
     vertices.push_back(v);
 
-    // Left-top
+    // Top-left Corner
     v.position = corner + up;
     vertices.push_back(v);
 
-    // Right-top
+    // Top-right Corner
     v.position = corner + right + up;
     vertices.push_back(v);
   };
 
-  // Left face
+  // Left Face
   float3 corner = make_float3(-width / 2.0f, -height / 2.0f, -depth / 2.0f);
   float3 right  = make_float3(0.0f, 0.0f, depth);
   float3 up     = make_float3(0.0f, height, 0.0f);
   add_face(corner, right, up);
 
-  // Right face
+  // Right Face
   corner = make_float3(width / 2.0f, -height / 2.0f, depth / 2.0f);
   right  = make_float3(0.0f, 0.0f, -depth);
   up     = make_float3(0.0f, height, 0.0f);
   add_face(corner, right, up);
 
-  // Bottom face
+  // Bottom Face
   corner = make_float3(-width / 2.0f, -height / 2.0f, -depth / 2.0f);
   right  = make_float3(width, 0.0f, 0.0f);
   up     = make_float3(0.0f, 0.0f, depth);
   add_face(corner, right, up);
 
-  // Top face
+  // Top Face
   corner = make_float3(-width / 2.0f, height / 2.0f, depth / 2.0f);
   right  = make_float3(width, 0.0f, 0.0f);
   up     = make_float3(0.0f, 0.0f, -depth);
   add_face(corner, right, up);
 
-  // Back face
+  // Back Face
   corner = make_float3(width / 2.0f, -height / 2.0f, -depth / 2.0f);
   right  = make_float3(-width, 0.0f, 0.0f);
   up     = make_float3(0.0f, height, 0.0f);
   add_face(corner, right, up);
 
-  // Front face
+  // Front Face
   corner = make_float3(-width / 2.0f, -height / 2.0f, depth / 2.0f);
   right  = make_float3(width, 0.0f, 0.0f);
   up     = make_float3(0.0f, height, 0.0f);
   add_face(corner, right, up);
 
+  // Add indices for all the faces.
   std::vector<unsigned int> indices;
   for (int f = 0; f < 6; f++) {
     int offset = 4*f;
@@ -133,60 +140,56 @@ Geometry OptixScene::create_cuboid(float width, float height, float depth) {
     indices.push_back(offset + 2);
   }
 
+  // Sanity Checks
   assert(vertices.size() == 4*6);
   assert(indices.size() == 6*6);
 
   return create_geometry(vertices, indices);
 }
 
-Geometry OptixScene::create_plane(const int tessU, const int tessV) {
-  assert(1 <= tessU && 1 <= tessV);
-
-  const float uTile = 2.0f / float(tessU);
-  const float vTile = 2.0f / float(tessV);
-  
-  float3 corner;
-
+// Creats a unit plane on the xz-plane.
+Geometry OptixScene::create_plane() {
   std::vector<VertexData> vertices;
   
   VertexData v;
-
-  // Positive y-axis is the geometry normal, create geometry on the xz-plane.
-  corner = make_float3(-1.0f, 0.0f, 1.0f); // left front corner of the plane. uv (0.0f, 0.0f).
-
   v.tangent = make_float3(1.0f, 0.0f, 0.0f);
   v.normal = make_float3(0.0f, 1.0f, 0.0f);
 
-  for (int j = 0; j <= tessV; ++j) {
-    const float tv = float(j) * vTile;
+  float3 corner = make_float3(-1.0f, 0.0f, -1.0f);
+  float3 right  = make_float3(2.0f, 0.0f, 0.0f);
+  float3 up     = make_float3(0.0f, 0.0f, 2.0f);
 
-    for (int i = 0; i <= tessU; ++i) {
-      const float tu = float(i) * uTile;
+  // Bottom-left Corner
+  v.position = corner;
+  vertices.push_back(v);
 
-      v.position = corner + make_float3(tu, 0.0f, -tv);
-      v.uv       = make_float3(tu * 0.5f, tv * 0.5f, 0.0f);
+  // Bottom-right Corner
+  v.position = corner + right;
+  vertices.push_back(v);
 
-      vertices.push_back(v);
-    }
-  }
+  // Top-left Corner
+  v.position = corner + up;
+  vertices.push_back(v);
+
+  // Top-right Corner
+  v.position = corner + right + up;
+  vertices.push_back(v);
 
   std::vector<unsigned int> indices;
-  
-  const unsigned int stride = tessU + 1;
-  for (int j = 0; j < tessV; ++j) {
-    for (int i = 0; i < tessU; ++i) {
-      indices.push_back( j      * stride + i    );
-      indices.push_back( j      * stride + i + 1);
-      indices.push_back((j + 1) * stride + i + 1);
 
-      indices.push_back((j + 1) * stride + i + 1);
-      indices.push_back((j + 1) * stride + i    );
-      indices.push_back( j      * stride + i    );
-    }
-  }
+  // Bot-right triangle
+  indices.push_back(0);
+  indices.push_back(1);
+  indices.push_back(3);
 
-  assert(vertices.size() == (tessU+1) * (tessV+1));
-  assert(indices.size() == 6 * tessU * tessV);
+  // Top-left triangle
+  indices.push_back(0);
+  indices.push_back(3);
+  indices.push_back(2);
+
+  // Sanity Checks
+  assert(vertices.size() == 4);
+  assert(indices.size() == 6);
 
   return create_geometry(vertices, indices);
 }
@@ -261,6 +264,7 @@ Geometry OptixScene::create_sphere(const int tessU, const int tessV, const float
     }
   }
   
+  // Sanity Checks
   assert(vertices.size() == (tessU + 1) * tessV);
   assert(indices.size() == 6 * tessU * (tessV - 1));
 

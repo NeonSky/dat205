@@ -24,7 +24,7 @@ public:
   optix::Context& context();
 
   optix::Geometry create_cuboid(float width, float height, float depth);
-  optix::Geometry create_plane(const int tessU, const int tessV);
+  optix::Geometry create_plane();
   optix::Geometry create_sphere(const int tessU, const int tessV, const float radius, const float maxTheta);
   optix::Geometry create_geometry(std::vector<VertexData> const& attributes, std::vector<unsigned int> const& indices);
 

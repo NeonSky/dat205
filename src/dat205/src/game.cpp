@@ -42,7 +42,7 @@ void PongGame::create_background_geometry(OptixScene &scene, Group &parent_group
       mat["mat_fresnel"]->setFloat(0.2f);
       mat["mat_refractive_index"]->setFloat(1.0f);
 
-      Geometry geometry = scene.create_plane(1, 1);
+      Geometry geometry = scene.create_plane();
       GeometryInstance geometry_instance = ctx->createGeometryInstance();
       geometry_instance->setGeometry(geometry);
       geometry_instance->setMaterialCount(1);

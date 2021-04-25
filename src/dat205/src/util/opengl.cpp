@@ -10,9 +10,7 @@ std::string shader_root_path();
 // Buffers
 void bind_buffer(GLenum target, GLuint buffer, std::function<void()> f) {
     glBindBuffer(target, buffer);
-
     f();
-
     glBindBuffer(target, 0);
 }
 
@@ -88,9 +86,7 @@ void use_program(GLuint program, std::function<void()> f) {
 // Textures
 void bind_texture(GLenum target, GLuint texture, std::function<void()> f) {
     glBindTexture(target, texture);
-
     f();
-
     glBindTexture(target, 0);
 }
 
@@ -99,6 +95,7 @@ std::string shader_root_path() {
   return "./dat205/shaders/glsl/";
 }
 
+// Checks if there is a log associated with the program, and if so, debug prints it.
 void check_info_log(GLuint gl_object) {
   GLint max_length;
 
