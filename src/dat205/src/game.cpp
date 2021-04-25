@@ -117,7 +117,7 @@ void PongGame::create_background_geometry(OptixScene &scene, Group &parent_group
       };
 
       add_wall(m_table_depth + 0.5f, 2.0f, 0.2f);
-      add_wall(-(m_table_depth + 0.5f), 4.0f, 0.0f);
+      add_wall(-(m_table_depth + 0.5f), 4.0f, 0.0f); // No reflection on north wall, because it was distracting.
     }
 
     // West and east walls

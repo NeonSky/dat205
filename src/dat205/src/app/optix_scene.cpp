@@ -3,6 +3,8 @@
 using namespace optix;
 
 void Application::create_scene() {
+
+  // Create root group and acceleration structure.
   run_unsafe_optix_code([&]() {
     m_root_group = m_ctx->createGroup();
 
@@ -12,7 +14,10 @@ void Application::create_scene() {
     m_ctx["root"]->set(m_root_group);
   });
 
+  // Create game geometry under root node.
   m_game->create_geometry(*m_scene, m_root_group);
+
+  // Add some light sources to the scene.
   create_scene_lights();
 }
 
@@ -70,7 +75,8 @@ void Application::create_scene_lights() {
     l.intensity = 20000.0f;
     lights.push_back(l);
   }
-  // Red goal
+
+  // Red Goal Lights
   {
     PointLight l;
     l.position  = make_float3(-8.0f, 4.0f, -3.0f);
@@ -80,7 +86,8 @@ void Application::create_scene_lights() {
     l.position  = make_float3(-8.0f, 4.0f, 3.0f);
     lights.push_back(l);
   }
-  // Blue goal
+
+  // Blue Goal Lights
   {
     PointLight l;
     l.position  = make_float3(8.0f, 4.0f, -3.0f);
@@ -91,11 +98,13 @@ void Application::create_scene_lights() {
     lights.push_back(l);
   }
 
+  // Upload data to GPU.
   Buffer buffer = m_ctx->createBuffer(RT_BUFFER_INPUT);
   buffer->setFormat(RT_FORMAT_USER);
   buffer->setElementSize(sizeof(PointLight));
   buffer->setSize(lights.size());
 
+  // Fills the buffer with the lights data.
   memcpy(buffer->map(), lights.data(), sizeof(PointLight) * lights.size());
   buffer->unmap();
 

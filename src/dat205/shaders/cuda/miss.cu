@@ -7,7 +7,7 @@ rtDeclareVariable(RayPayload, payload, rtPayload, );
 // Environment map texture sampler.
 rtTextureSampler<float4, 2> env_map;
 
-RT_PROGRAM void miss_environment_constant() {
+RT_PROGRAM void environment_map() {
 
   // Azimuth; angle from the ray's z-axis (ccw) to (x, z). Reference: https://www.wikiwand.com/en/Spherical_coordinate_system
   float theta = atan2f(ray.direction.x, ray.direction.z);
