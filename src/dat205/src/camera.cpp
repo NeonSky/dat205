@@ -8,10 +8,6 @@ PinholeCamera::PinholeCamera()
 , m_phi(0.75f)
 , m_theta(0.6f)
 , m_fov(60.0f)
-//:  m_distance(3.0f)
-//, m_phi(0.75f)  // positive z-axis
-//, m_theta(0.5f) // equator
-//, m_fov(60.0f)
 , m_width(1)
 , m_height(1)
 , m_aspect(1.0f)

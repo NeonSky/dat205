@@ -84,7 +84,7 @@ void PongGame::create_background_geometry(OptixScene &scene, Group &parent_group
         mat["mat_transparency"]->setFloat(0.8f);
         mat["mat_reflectivity"]->setFloat(0.8f);
         mat["mat_fresnel"]->setFloat(fresnel);
-        mat["mat_refractive_index"]->setFloat(1.45f);
+        mat["mat_refractive_index"]->setFloat(1.45f); // similar to glass
 
         Geometry geometry = scene.create_cuboid(16, height, 1);
 
@@ -188,7 +188,7 @@ void PongGame::create_geometry(OptixScene &scene, Group &parent_group) {
   m_paddle_material["mat_transparency"]->setFloat(0.0f);
   m_paddle_material["mat_reflectivity"]->setFloat(0.7f);
   m_paddle_material["mat_fresnel"]->setFloat(0.8f);
-  m_paddle_material["mat_refractive_index"]->setFloat(1.7f);
+  m_paddle_material["mat_refractive_index"]->setFloat(1.0f);
 
   m_ball_material = ctx->createMaterial();
   m_ball_material->setClosestHitProgram(0, ctx->createProgramFromPTXFile(ptxPath("closest_hit.cu"), "closest_hit"));
@@ -200,7 +200,7 @@ void PongGame::create_geometry(OptixScene &scene, Group &parent_group) {
   m_ball_material["mat_transparency"]->setFloat(0.0f);
   m_ball_material["mat_reflectivity"]->setFloat(0.8f);
   m_ball_material["mat_fresnel"]->setFloat(0.5f);
-  m_ball_material["mat_refractive_index"]->setFloat(1.4f);
+  m_ball_material["mat_refractive_index"]->setFloat(1.0f);
 
   // Create the two paddles.
   {
@@ -271,7 +271,8 @@ void PongGame::update(float dt, float paddle1_dz, float paddle2_dz) {
 }
 
 void PongGame::update_ball(float dt) {
-    // Wall constraints.
+
+    // Wall Constraints
     float x_min = -m_table_width + m_ball.radius;
     float x_max =  m_table_width - m_ball.radius;
     float z_min = -m_table_depth + m_ball.radius;
@@ -390,6 +391,7 @@ void PongGame::reset_ball() {
   static std::mt19937 rng(rd());
   static std::uniform_real_distribution<> dist(-M_PIf / 4.0f,  M_PIf / 4.0f);
 
+  // Randomize which player the ball will initially head towards.
   int dir = 2*(rng() % 2) - 1;
   float init_angle = dist(rng);
 

@@ -17,7 +17,7 @@
 
 struct RayPayload {
   optix::float3 radiance;
-  float importance;
+  float importance; // the weight of the ray's contribution
   int recursion_depth;
 };
 

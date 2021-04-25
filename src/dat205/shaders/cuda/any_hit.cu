@@ -16,11 +16,12 @@ RT_PROGRAM void any_hit() {
     rtTerminateRay();
   }
 
+  // Reflect/absorb based on fresnel.
   float3 normal = optix::normalize(rtTransformNormal(RT_OBJECT_TO_WORLD, attr_normal));
-  float n_dot_r = fabs(optix::dot(normal, ray.direction));
+  float n_dot_i = fabs(optix::dot(normal, ray.direction));
 
   float attenuation = 1.0f - mat_transparency;
-  float F = attenuation + (1.0f - attenuation) * pow(1.0f - n_dot_r, 5.0f);
+  float F = attenuation + (1.0f - attenuation) * pow(1.0f - n_dot_i, 5.0f);
 
   payload.attenuation *= 1.0f - F;
 

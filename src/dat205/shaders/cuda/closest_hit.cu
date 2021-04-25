@@ -30,7 +30,7 @@ rtDeclareVariable(optix::float3, attr_normal,     attribute NORMAL    , );
 rtDeclareVariable(optix::float3, attr_uv,         attribute TEX_UV    , );
 
 RT_FUNCTION float fresnel(float wo_dot_h) {
-  float F = mat_fresnel + (1.0f - mat_fresnel) * pow(1.0f - wo_dot_h, 5.0f);
+  float F = mat_fresnel + (1.0f - mat_fresnel) * pow(1.0f - wo_dot_h, 5.0f); // Schlick's approximation.
   return F;
 }
 
@@ -131,8 +131,7 @@ RT_FUNCTION float3 indirect_illumination(float3 const& wo,
     float wo_dot_wh = max(0.01f, optix::dot(wo, wh));
     float F = mat_reflectivity * fresnel(wo_dot_wh);
 
-    float importance = payload.importance * optix::luminance(make_float3(F));
-
+    float importance = payload.importance;
     float importance_threshold = 0.1f;
     if (importance_threshold <= importance) {
 
@@ -156,28 +155,33 @@ RT_FUNCTION float3 indirect_illumination(float3 const& wo,
   }
 
   // Indirect illumination from refractions
-  if (0.0f < mat_transparency && payload.recursion_depth < 5) {
+  int max_recursion_depth = 5;
+  if (0.0f < mat_transparency && payload.recursion_depth < max_recursion_depth) {
     float3 wi;
-    bool total_internal_reflection = !optix::refract(wi, ray.direction, n, mat_refractive_index);
+    bool total_internal_reflection = !optix::refract(wi, ray.direction, n, mat_refractive_index); // For optix::refract(), see https://docs.nvidia.com/gameworks/content/gameworkslibrary/optix/optixapireference/optixu__math__namespace_8h_source.html
+
+    // float cos_theta = 0.0f;
+
+    // Refraction with Schlick’s approximation reference (page 4): https://graphics.stanford.edu/courses/cs148-10-summer/docs/2006--degreve--reflection_refraction.pdf
+
+    float F = 1.0f; // Fresnel of TIR
 
     if (total_internal_reflection) {
-      wi = optix::reflect(ray.direction, n);
+      wi = optix::reflect(ray.direction, n); // optix::refract() sets `wi = make_float3(0.0f)` on TIR, so we need to manually define `wi` in this case.
+    }
+    else {
+      // External -> Internal (i.e. n1 <= n2)
+      if(optix::dot(wo, n) <= 0.0f) {
+        F = fresnel(optix::dot(wi, n));
+      }
+
+      // Internal -> External (i.e. n1 > n2)
+      else {
+        F = fresnel(optix::dot(wo, n));
+      }
     }
 
-    // External or internal?
-    float cos_theta = optix::dot(ray.direction, n);
-
-    if (cos_theta < 0.0f) {
-      // wi comes from the outside air
-      cos_theta = optix::dot(wo, n);
-    } else {
-      // wi comes from the inside of the material
-      cos_theta = optix::dot(wi, n);
-    }
-
-    float F = fresnel(cos_theta);
-
-    float importance = payload.importance * (1.0f - F) * optix::luminance(make_float3(1.0f));
+    float importance = payload.importance * (1.0f - F);
 
     const float importance_threshold = 0.1f;
     if (importance_threshold <= importance) {
