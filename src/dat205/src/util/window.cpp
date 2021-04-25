@@ -8,7 +8,7 @@ void open_gui(GLFWwindow* window, std::function<void()> f) {
   ImGui::CreateContext();
   ImGui_ImplGlfwGL2_Init(window, true);
 
-  // Save settings
+  // Save session settings temporarily.
   ImGuiIO &io = ImGui::GetIO();
   io.IniFilename = "/tmp/imgui.ini";
 
@@ -19,6 +19,7 @@ void open_gui(GLFWwindow* window, std::function<void()> f) {
   // Customize the appearance of ImGui.
   ImGuiStyle& style = ImGui::GetStyle();
 
+  // Configure a gray-scale theme.
   const float r = 1.0f;
   const float g = 1.0f;
   const float b = 1.0f;

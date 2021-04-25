@@ -222,7 +222,6 @@ Geometry OptixScene::create_sphere(const int tessU, const int tessV, const float
     // Generate vertices along the latitudinal rings.
     // On each latitude there are tessU + 1 vertices.
     // The last one and the first one are on identical positions, but have different texture coordinates!
-    // DAR FIXME Note that each second triangle connected to the two poles has zero area!
     for (int longitude = 0; longitude <= tessU; longitude++) // phi angle
     {
       float phi    = (float) longitude * phi_step;
@@ -271,13 +270,14 @@ Geometry OptixScene::create_sphere(const int tessU, const int tessV, const float
   return create_geometry(vertices, indices);
 }
 
-
+// Creates a triangle-based geometry from vertex and index data.
 Geometry OptixScene::create_geometry(std::vector<VertexData> const& attributes, std::vector<unsigned int> const& indices) {
   Geometry geometry(nullptr);
 
   run_unsafe_optix_code([&]() {
     geometry = m_ctx->createGeometry();
 
+    // Upload vertex data.
     Buffer vertex_buffer = m_ctx->createBuffer(RT_BUFFER_INPUT, RT_FORMAT_USER);
     vertex_buffer->setElementSize(sizeof(VertexData));
     vertex_buffer->setSize(attributes.size());
@@ -286,17 +286,19 @@ Geometry OptixScene::create_geometry(std::vector<VertexData> const& attributes, 
     memcpy(dst, attributes.data(), sizeof(VertexData) * attributes.size());
     vertex_buffer->unmap();
 
+    // Upload index data.
     Buffer index_buffer = m_ctx->createBuffer(RT_BUFFER_INPUT, RT_FORMAT_UNSIGNED_INT3, indices.size() / 3);
     dst = index_buffer->map(0, RT_BUFFER_MAP_WRITE_DISCARD);
     memcpy(dst, indices.data(), sizeof(uint3) * indices.size() / 3);
     index_buffer->unmap();
 
+    // Use the triangle-based geometry CUDA shaders.
     geometry->setBoundingBoxProgram(m_boundingbox_triangle_indexed);
     geometry->setIntersectionProgram(m_intersection_triangle_indexed);
 
     geometry["vertex_buffer"]->setBuffer(vertex_buffer);
     geometry["index_buffer"]->setBuffer(index_buffer);
-    geometry->setPrimitiveCount((unsigned int)(indices.size()) / 3);
+    geometry->setPrimitiveCount((unsigned int)(indices.size()) / 3); // One primitive for each 3 indices because we only use triangles.
   });
 
   return geometry;
