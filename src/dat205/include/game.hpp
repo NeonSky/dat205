@@ -19,6 +19,7 @@ class PongGame {
 public:
   PongGame(float width, float height);
 
+  void create_background_geometry(OptixScene &scene, optix::Group &parent_group);
   void create_geometry(OptixScene &scene, optix::Group &parent_group);
   void update(float dt, float paddle1_dz, float paddle2_dz);
   void render();

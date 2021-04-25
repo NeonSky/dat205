@@ -24,10 +24,12 @@ make
 ## Rebuild
 ```
 cmake ../src && make dat205
+cmake ../src && make dat205-water
 ```
 
 ## Run
 ```
 cd build
 ./bin/dat205
+./bin/dat205-water
 ```

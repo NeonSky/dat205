@@ -2,6 +2,8 @@
 
 #include <iostream>
 
+// Entrypoint of the application.
+// Opens a GLFW window with a ImGUI layer on top and then creates and attaches the application.
 int main() {
   std::cout << "DAT205 application started." << std::endl;
 

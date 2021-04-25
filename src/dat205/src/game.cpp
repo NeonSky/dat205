@@ -19,7 +19,163 @@ PongGame::PongGame(float width, float depth)
   reset();
 }
 
+void PongGame::create_background_geometry(OptixScene &scene, Group &parent_group) {
+  Context& ctx = scene.context();
+
+  // Load the environment map.
+  std::string env_map_path = std::string(sutil::samplesDir()) + "/data/chinese_garden_2k.hdr";
+  float3 default_color = make_float3(1.0f, 1.0f, 1.0f);
+  ctx["env_map"]->setTextureSampler(sutil::loadTexture(ctx, env_map_path, default_color));
+
+  run_unsafe_optix_code([&]() {
+    // Floor
+    {
+      Material mat = ctx->createMaterial();
+      mat->setClosestHitProgram(0, ctx->createProgramFromPTXFile(ptxPath("closest_hit.cu"), "closest_hit"));
+      mat->setAnyHitProgram(1, ctx->createProgramFromPTXFile(ptxPath("any_hit.cu"), "any_hit"));
+      mat["mat_color"]->setFloat(1.0f, 1.0f, 1.0f);
+      mat["mat_emission"]->setFloat(0.3f); // Some emission for an air hockey feel.
+      mat["mat_metalness"]->setFloat(0.4f);
+      mat["mat_shininess"]->setFloat(5.0f);
+      mat["mat_transparency"]->setFloat(0.0f);
+      mat["mat_reflectivity"]->setFloat(0.7f);
+      mat["mat_fresnel"]->setFloat(0.2f);
+      mat["mat_refractive_index"]->setFloat(1.0f);
+
+      Geometry geometry = scene.create_plane(1, 1);
+      GeometryInstance geometry_instance = ctx->createGeometryInstance();
+      geometry_instance->setGeometry(geometry);
+      geometry_instance->setMaterialCount(1);
+      geometry_instance->setMaterial(0, mat);
+
+      Acceleration acceleration = ctx->createAcceleration(ACC_TYPE);
+      set_acceleration_properties(acceleration);
+      
+      GeometryGroup geometry_group = ctx->createGeometryGroup();
+      geometry_group->setAcceleration(acceleration);
+      geometry_group->addChild(geometry_instance);
+
+      float T[16] = {
+        m_table_width, 0.0f, 0.0f, 0.0f,
+        0.0f, 1.0f, 0.0f, 0.0f,
+        0.0f, 0.0f, m_table_depth, 0.0f,
+        0.0f, 0.0f, 0.0f, 1.0f
+      };
+      Matrix4x4 M(T);
+
+      Transform t = ctx->createTransform();
+      t->setChild(geometry_group);
+      t->setMatrix(false, M.getData(), M.inverse().getData());
+      
+      // Add the transform node placeing the plane to the scene's root Group node.
+      parent_group->addChild(t);
+    }
+
+    // South and north walls
+    {
+      auto add_wall = [&](float z_offset, float height, float fresnel) {
+        Material mat = ctx->createMaterial();
+        mat->setClosestHitProgram(0, ctx->createProgramFromPTXFile(ptxPath("closest_hit.cu"), "closest_hit"));
+        mat->setAnyHitProgram(1, ctx->createProgramFromPTXFile(ptxPath("any_hit.cu"), "any_hit"));
+        mat["mat_color"]->setFloat(1.0f, 1.0f, 1.0f);
+        mat["mat_emission"]->setFloat(0.05f);
+        mat["mat_metalness"]->setFloat(0.0f);
+        mat["mat_shininess"]->setFloat(0.0f);
+        mat["mat_transparency"]->setFloat(0.8f);
+        mat["mat_reflectivity"]->setFloat(0.8f);
+        mat["mat_fresnel"]->setFloat(fresnel);
+        mat["mat_refractive_index"]->setFloat(1.45f);
+
+        Geometry geometry = scene.create_cuboid(16, height, 1);
+
+        GeometryInstance geometry_instance = ctx->createGeometryInstance();
+        geometry_instance->setGeometry(geometry);
+        geometry_instance->setMaterialCount(1);
+        geometry_instance->setMaterial(0, mat);
+
+        Acceleration acceleration = ctx->createAcceleration(ACC_TYPE);
+        set_acceleration_properties(acceleration);
+        
+        GeometryGroup geometry_group = ctx->createGeometryGroup();
+        geometry_group->setAcceleration(acceleration);
+        geometry_group->addChild(geometry_instance);
+
+        float T[16] = {
+          1.0f, 0.0f, 0.0f, 0.0f,
+          0.0f, 1.0f, 0.0f, 0.0f,
+          0.0f, 0.0f, 1.0f, z_offset,
+          0.0f, 0.0f, 0.0f, 1.0f
+        };
+        Matrix4x4 M(T);
+
+        Transform t = ctx->createTransform();
+        t->setChild(geometry_group);
+        t->setMatrix(false, M.getData(), M.inverse().getData());
+
+        // Add the transform node placeing the plane to the scene's root Group node.
+        parent_group->addChild(t);
+      };
+
+      add_wall(m_table_depth + 0.5f, 2.0f, 0.2f);
+      add_wall(-(m_table_depth + 0.5f), 4.0f, 0.0f);
+    }
+
+    // West and east walls
+    {
+      auto add_wall = [&](float x_offset, float3 color) {
+        Material mat = ctx->createMaterial();
+        mat->setClosestHitProgram(0, ctx->createProgramFromPTXFile(ptxPath("closest_hit.cu"), "closest_hit"));
+        mat->setAnyHitProgram(1, ctx->createProgramFromPTXFile(ptxPath("any_hit.cu"), "any_hit"));
+        mat["mat_color"]->setFloat(color);
+        mat["mat_emission"]->setFloat(0.8f);
+        mat["mat_metalness"]->setFloat(0.0f);
+        mat["mat_shininess"]->setFloat(0.0f);
+        mat["mat_transparency"]->setFloat(0.0f);
+        mat["mat_reflectivity"]->setFloat(0.0f);
+        mat["mat_fresnel"]->setFloat(0.0f);
+        mat["mat_refractive_index"]->setFloat(1.0f);
+
+        Geometry geometry = scene.create_cuboid(1, 1, 12);
+
+        GeometryInstance geometry_instance = ctx->createGeometryInstance();
+        geometry_instance->setGeometry(geometry);
+        geometry_instance->setMaterialCount(1);
+        geometry_instance->setMaterial(0, mat);
+
+        Acceleration acceleration = ctx->createAcceleration(ACC_TYPE);
+        set_acceleration_properties(acceleration);
+        
+        GeometryGroup geometry_group = ctx->createGeometryGroup();
+        geometry_group->setAcceleration(acceleration);
+        geometry_group->addChild(geometry_instance);
+
+        float T[16] = {
+          1.0f, 0.0f, 0.0f, x_offset,
+          0.0f, 1.0f, 0.0f, 0.0f,
+          0.0f, 0.0f, 1.0f, 0.0f,
+          0.0f, 0.0f, 0.0f, 1.0f
+        };
+        Matrix4x4 M(T);
+
+        Transform t = ctx->createTransform();
+        t->setChild(geometry_group);
+        t->setMatrix(false, M.getData(), M.inverse().getData());
+
+        // Add the transform node placeing the plane to the scene's root Group node.
+        parent_group->addChild(t);
+      };
+
+      // NOTE: We apply a small offset to avoid z-fighting.
+      add_wall(-(m_table_width + 0.501f), make_float3(1.0f, 0.0f, 0.0f));
+      add_wall(m_table_width + 0.501f, make_float3(0.0f, 0.0f, 1.0f));
+    }
+  });
+}
+
 void PongGame::create_geometry(OptixScene &scene, Group &parent_group) {
+
+  create_background_geometry(scene, parent_group);
+
   Context& ctx = scene.context();
 
   m_paddle_material = ctx->createMaterial();

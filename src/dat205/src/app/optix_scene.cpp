@@ -12,7 +12,6 @@ void Application::create_scene() {
     m_ctx["root"]->set(m_root_group);
   });
 
-  create_background_geometry();
   m_game->create_geometry(*m_scene, m_root_group);
   create_scene_lights();
 }

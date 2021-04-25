@@ -48,9 +48,6 @@ private:
   void handle_mouse_input();
   void handle_keyboard_input(GLFWwindow* window, int key, int scancode, int action, int mods);
 
-  // Background
-  void create_background_geometry();
-
   // Game
   std::unique_ptr<PongGame> m_game;
   float m_player1_velocity;

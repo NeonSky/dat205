@@ -11,11 +11,15 @@ std::string ptxPath(std::string const& cuda_file) {
 }
 
 void run_unsafe_optix_code(std::function<void()> f) {
+  #if USE_DEBUG_EXCEPTIONS
   try {
     f();
   } catch (Exception& e) {
     std::cerr << e.getErrorString() << std::endl;
   }
+  #else
+  f();
+  #endif
 }
 
 void set_acceleration_properties(Acceleration acceleration) {
