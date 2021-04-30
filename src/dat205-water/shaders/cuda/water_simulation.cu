@@ -210,6 +210,9 @@ RT_PROGRAM void update_particles_data() {
 ///////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////
+RT_FUNCTION float sign(float x) {
+	return x > 0.0f ? 1.0f : -1.0f;
+}
 
 // The "spiky" kernel.
 // This is used to prevent clusters when distance approaches 0.
@@ -218,12 +221,8 @@ RT_FUNCTION float3 pressure_kernel_gradient(float3 dist_vec) {
   float distance = optix::length(dist_vec);
   if (distance >= support_radius) {
     return make_float3(0.0f);
-  } else if (distance < 1e-5) {
-    // We'll treat this case as the particles being in the same position.
-    // Thus, they won't affect each other in any direction.
-    // This is mostly to avoid division by zero.
-    // return make_float3(0.0f);
-    return -(45.0f / (M_PIf * powf(support_radius, 6.0f))) * optix::normalize(make_float3(1.0f)) * powf(support_radius - distance, 2.0f);
+  } else if (distance < 1e-3) {
+    return -(45.0f / (M_PIf * powf(support_radius, 6.0f))) * make_float3(sign(dist_vec.x), sign(dist_vec.y), sign(dist_vec.z)) * powf(support_radius - distance, 2.0f);
   } else {
     return -(45.0f / (M_PIf * powf(support_radius, 6.0f))) * (dist_vec / distance) * powf(support_radius - distance, 2.0f);
   }
