@@ -3,34 +3,39 @@
 rtDeclareVariable(uint, launch_index, rtLaunchIndex, );
 rtDeclareVariable(uint, launch_dim,   rtLaunchDim, );
 
-rtDeclareVariable(float, dt    , , ); // Delta time [s]
-rtDeclareVariable(float, g     , , ); // Gravity acceleration [m/s^2]
+rtDeclareVariable(float, dt, , ); // Delta time [s]
+rtDeclareVariable(float, g , , ); // Gravity acceleration [m / s^2]
 
-rtDeclareVariable(float, cell_size, , ); // [m]
-rtDeclareVariable(float, support_radius, , ); // [m]
+rtDeclareVariable(float, cell_size      , , ); // [m]
+rtDeclareVariable(float, support_radius , , ); // [m]
 rtDeclareVariable(float, particle_radius, , ); // [m]
 
-rtDeclareVariable(float, particle_mass, , );// [kg]
-rtDeclareVariable(float, rest_density, , ); // [kg / m^3]
-rtDeclareVariable(float, gass_stiffness, , ); // [Pa * m^3 / kg]
-rtDeclareVariable(float, viscosity, , ); // [Pa * s]
-rtDeclareVariable(float, l_threshold, , ); // []
+rtDeclareVariable(float, particle_mass  , , ); // [kg]
+rtDeclareVariable(float, rest_density   , , ); // [kg / m^3]
+rtDeclareVariable(float, viscosity      , , ); // [Pa * s]
 rtDeclareVariable(float, surface_tension, , ); // [N / m]
-rtDeclareVariable(float, restitution, , ); // []
+rtDeclareVariable(float, l_threshold    , , ); // []
+rtDeclareVariable(float, gass_stiffness , , ); // [J]
+rtDeclareVariable(float, restitution    , , ); // []
 
-rtDeclareVariable(float, y_min , , ); // The floor's y-level
-rtDeclareVariable(float, x_min , , ); // Left wall
-rtDeclareVariable(float, x_max , , ); // Right wall
-rtDeclareVariable(float, z_min , , ); // Far wall
-rtDeclareVariable(float, z_max , , ); // Near wall
+rtDeclareVariable(float, y_min, , ); // The floor's y-level
+rtDeclareVariable(float, x_min, , ); // Left wall
+rtDeclareVariable(float, x_max, , ); // Right wall
+rtDeclareVariable(float, z_min, , ); // Far wall
+rtDeclareVariable(float, z_max, , ); // Near wall
 
+// A table/array/buffer of hash cells.
+// In each cell we will store the particles that occupy that corresponding volume in space.
 rtBuffer<HashCell> hash_table;
 
 // Simulated particles.
 rtBuffer<Particle> particles_buffer;
 
 
-// eq 5.1, 5.2, 5.3
+// Converts a discretized 3D position into a hash table index.
+// We use this to decide where in the hash table to store each particle for neighbor detection.
+//
+// See: eq 5.1, 5.2, 5.3
 RT_FUNCTION uint hash(int3 pos) {
   // Primes
   static const int p1 = 73856093;
@@ -41,61 +46,94 @@ RT_FUNCTION uint hash(int3 pos) {
   return ((pos.x * p1) ^ (pos.y * p2) ^ (pos.z * p3)) % hash_table.size();
 }
 
+// Resets each hash cell to contain 0 particles.
 RT_PROGRAM void reset_nearest_neighbors() {
   Particle& p = particles_buffer[launch_index];
+
+  // Fetch the previous cell we stored this particle in (default is 0).
   HashCell& cell = hash_table[p.prev_hash_cell_index];
-  cell[0] = 0; // only necessary to reset the count
+
+  // Reset the particle count of that cell (idempotent operation).
+  cell[0] = 0;
 }
 
+///////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////
+
+// Updates each hash cell to contain the particles that occupy the corresponding physical space (voxel).
 RT_PROGRAM void update_nearest_neighbors() {
   Particle& p = particles_buffer[launch_index];
 
+  // Discretize the space into cells of size `cell_size` and compute particle `p`'s coordinates in this space.
   int3 cell_position = make_int3(p.position / cell_size);
+
+  // Hash the discretized position to get its corresponding index in the hash table.
   uint cell_index = hash(cell_position);
+
+  // Fetch the cell and remember its index (will be used the next time we reset the hash table).
   HashCell& cell = hash_table[cell_index];
   p.prev_hash_cell_index = cell_index;
 
-  // Increase the particle count counter
+  // Increase the particle occupaciation count.
   uint prev_particle_count = atomicAdd(&cell[0], 1);
 
-  // Were we already at max?
+  // Were we already at max before trying to add this new particle?
+  // NOTE: first entry is for count so there are only `HASH_CELL_SIZE-1` particle slots.
   if (prev_particle_count >= HASH_CELL_SIZE-1) {
-    // Revert
+    // Revert the count to max (idempotent operation).
     atomicMin(&cell[0], HASH_CELL_SIZE-1);
   }
+
   // Otherwise, we have now reserved a spot (prev_particle_count) in the hash cell
   else {
+    // Store particle `p`'s index in the particles buffer in this cell.
+    // NOTE: we skip first entry since that's for the particle count.
     cell[1 + prev_particle_count] = launch_index;
   }
 }
 
+///////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////
+
+// Populates `nn` with the neighboring particles that are potentially within `support_radius` distance.
+// Also updates `nn_count` to equal the amount of such particles.
 RT_FUNCTION void nearest_neighbor_search(Particle& p,
                                          unsigned int& nn_count,
                                          unsigned int* nn) {
 
   int3 center_cell_position = make_int3(p.position / cell_size);
 
-  // Search for neighbors in the 3x3x3 grid of cells that is centered on this particle's cell.
+  // Search for neighbors in the 3x3x3 grid of cells that is centered on particle `p`.
   for (int x = -1; x <= 1; x++) {
     for (int y = -1; y <= 1; y++) {
       for (int z = -1; z <= 1; z++) {
+
+        // Retrieve the corresponding hash cell.
         int3 cell_position = center_cell_position + make_int3(x, y, z);
         uint cell_index = hash(cell_position);
         HashCell& cell = hash_table[cell_index];
 
-        uint particles_in_cell = cell[0];
-        for (int i = 1; i <= particles_in_cell; i++) {
+        // Iterate all particles in the cell.
+        uint n_particles_in_cell = cell[0];
+        for (int i = 1; i <= n_particles_in_cell; i++) {
+
           if (cell[i] != launch_index) {
             nn[nn_count] = cell[i];
             nn_count += 1;
           }
         }
+
       }
     }
   }
 }
 
-// eq 4.3
+// The Poly 6 Smoothing Kernel
+// Behaves similarly to a normal distribution but is quite fast to compute.
+// NOTE: this is a normalized smoothing kernel, which means that \int W(|x - x_i|) dx = 1
+// See eq 4.3
 RT_FUNCTION float poly6_kernel(float distance) {
   if (distance >= support_radius) {
     return 0.0f;
@@ -104,7 +142,8 @@ RT_FUNCTION float poly6_kernel(float distance) {
   }
 }
 
-// eq 4.4
+// The Gradient of the Poly 6 Smoothing Kernel
+// See eq 4.4
 RT_FUNCTION float3 poly6_kernel_gradient(float3 dist_vec) {
   float distance = optix::length(dist_vec);
   if (distance >= support_radius) {
@@ -114,7 +153,8 @@ RT_FUNCTION float3 poly6_kernel_gradient(float3 dist_vec) {
   }
 }
 
-// eq 4.5
+// The Laplacian of the Poly 6 Smoothing Kernel
+// See eq 4.5
 RT_FUNCTION float poly6_kernel_laplacian(float distance) {
   if (distance >= support_radius) {
     return 0.0f;
@@ -123,15 +163,17 @@ RT_FUNCTION float poly6_kernel_laplacian(float distance) {
   }
 }
 
-// eq 4.6
+// Evaluates the mass-density field at particle `p`.
+// A smoothing kernel is used to ensure smooth continous densities across the fluid.
+// See eq 4.6
 RT_FUNCTION void update_density(Particle& p,
                                 unsigned int nn_count,
                                 unsigned int* nn) {
 
-  // Density from this particle alone
+  // Density based on this particle alone.
   float density = particle_mass * poly6_kernel(0.0f);
 
-  // Density from neighbors
+  // Density from neighbors.
   for (int i = 0; i < nn_count; i++) {
     Particle& pi = particles_buffer[nn[i]];
     float distance = optix::length(p.position - pi.position);
@@ -142,27 +184,36 @@ RT_FUNCTION void update_density(Particle& p,
   p.density = density;
 }
 
+// Computes pressure based on density deviation from the fluid's rest density.
+// This is a modification of the ideal gas law.
 // eq 4.12
-RT_FUNCTION void update_pressure(Particle& p,
-                                unsigned int nn_count,
-                                unsigned int* nn) {
+RT_FUNCTION void update_pressure(Particle& p) {
+  // If density at `p` is relatively high, then so is pressure.
+  // If density at `p` is relatively low, then so is pressure.
   p.pressure = gass_stiffness * (p.density - rest_density);
 }
 
+// Updates per-particle attributes based on neighboring particles.
 RT_PROGRAM void update_particles_data() {
   Particle& p = particles_buffer[launch_index];
 
-  // Find nearest neighbors
+  // Find nearest neighbors.
   unsigned int nn_count = 0;
   unsigned int nn[3 * 3 * 3 * HASH_CELL_SIZE];
   nearest_neighbor_search(p, nn_count, nn);
 
-  // Update density and pressure for each particle
+  // Update density and pressure for each particle.
   update_density(p, nn_count, nn);
-  update_pressure(p, nn_count, nn);
+  update_pressure(p);
 }
 
-// eq 4.14
+///////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////
+
+// The "spiky" kernel.
+// This is used to prevent clusters when distance approaches 0.
+// See eq 4.14
 RT_FUNCTION float3 pressure_kernel_gradient(float3 dist_vec) {
   float distance = optix::length(dist_vec);
   if (distance >= support_radius) {
