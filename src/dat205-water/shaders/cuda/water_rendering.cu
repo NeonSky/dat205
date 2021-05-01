@@ -19,18 +19,14 @@ rtBuffer<Particle> particles_buffer;
 // Current particle.
 rtDeclareVariable(Particle, attr_particle, attribute PARTICLE, );
 
-// RT_PROGRAM void any_hit() {
-//   payload.radiance = make_float3(0.0, 0.0, 0.0f);
-// }
-
+// Render each particle as a lambertian surface using only direct illumination from the sun.
 RT_PROGRAM void closest_hit() {
-  // const float speed = optix::length(attr_particle.velocity);
-  // payload.radiance = make_float3(speed, speed, 1.0f);
-
   float3 hit = ray.origin + ray_t * ray.direction;
   float3 n = optix::normalize(hit - attr_particle.position);
   float3 wi = optix::normalize(lights[0].position - hit);
-  payload.radiance = make_float3(0.0f, 0.0f, 1.0f) * max(optix::dot(n, wi), 0.2f);
+  payload.radiance = make_float3(0.0f, 0.0f, 1.0f) * max(optix::dot(n, wi), 0.2f); // 0.2f is used to avoid pitch black pixels.
+
+  // Kinda cool effect
   // payload.radiance = attr_particle.velocity;
 }
 
@@ -61,8 +57,8 @@ RT_PROGRAM void ray_intersection(int primitive_index) {
   const float r = particle_radius;
 
   // Compute only once
-  const float oc_d = optix::dot(o - c, d);
-  const float inside_root_term = oc_d * oc_d- optix::dot(o - c, o - c) + r * r;
+  const float oc_dot_d = optix::dot(o - c, d);
+  const float inside_root_term = oc_dot_d * oc_dot_d- optix::dot(o - c, o - c) + r * r;
 
   // Ensure that any (intersection) solution exists.
   if (0.0f <= inside_root_term) {
@@ -71,7 +67,7 @@ RT_PROGRAM void ray_intersection(int primitive_index) {
     const float sqrt_term = sqrtf(inside_root_term);
 
     // Consider the two (usually different) possible solutions.
-    const float t1 = -oc_d - sqrt_term;
+    const float t1 = -oc_dot_d - sqrt_term;
 
     // Determine whether the reported hit distance is within the valid interval associated with the ray.
     if (rtPotentialIntersection(t1)) {
@@ -80,10 +76,6 @@ RT_PROGRAM void ray_intersection(int primitive_index) {
       return;
     }
 
-    // NOTE: We might want to ignore the second root for performance reasons.
-    const float t2 = -oc_d + sqrt_term;
-    if (rtPotentialIntersection(t2)) {
-      rtReportIntersection(0);
-    }
+    // NOTE: We ignore the second root since t1 <= t2 = -oc_dot_d + sqrt_term, and distance is all that matters here.
   }
 }
