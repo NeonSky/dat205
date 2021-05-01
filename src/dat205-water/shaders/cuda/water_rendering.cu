@@ -26,8 +26,8 @@ RT_PROGRAM void closest_hit() {
   float3 wi = optix::normalize(lights[0].position - hit);
   payload.radiance = make_float3(0.0f, 0.0f, 1.0f) * max(optix::dot(n, wi), 0.2f); // 0.2f is used to avoid pitch black pixels.
 
-  // Kinda cool effect
-  // payload.radiance = attr_particle.velocity;
+  // Kinda cool effect (also useful for debugging).
+  // payload.radiance = make_float3(abs(attr_particle.velocity.x), abs(attr_particle.velocity.y), abs(attr_particle.velocity.z));
 }
 
 RT_PROGRAM void bounding_box(int primitive_index, float result[6]) {

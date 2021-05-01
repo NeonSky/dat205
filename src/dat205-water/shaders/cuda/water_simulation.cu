@@ -230,12 +230,12 @@ RT_FUNCTION float3 pressure_kernel_gradient(float3 dist_vec) {
 
 // Computes the symmetric pressure force acting on this particle (due to neighboring particles).
 // See eq 4.10 and fig 4.3
-RT_FUNCTION float3 pressure_force(Particle& p,
+RT_FUNCTION float3 pressure_force(const Particle& p,
                                   unsigned int nn_count,
                                   unsigned int* nn) {
   float3 force = make_float3(0.0f);
   for (int i = 0; i < nn_count; i++) {
-    Particle& pi = particles_buffer[nn[i]];
+    const Particle& pi = particles_buffer[nn[i]];
     float3 dist_vec = p.position - pi.position;
 
     // Higher pressure between the two particles results in stronger force.
@@ -260,12 +260,12 @@ RT_FUNCTION float viscosity_kernel_laplacian(float distance) {
 
 // Computes the viscosity force which causes particles to gradually conform to the surrounding fluid velocity.
 // See eq 4.17
-RT_FUNCTION float3 viscosity_force(Particle& p,
+RT_FUNCTION float3 viscosity_force(const Particle& p,
                                    unsigned int nn_count,
                                    unsigned int* nn) {
   float3 force = make_float3(0.0f);
   for (int i = 0; i < nn_count; i++) {
-    Particle& pi = particles_buffer[nn[i]];
+    const Particle& pi = particles_buffer[nn[i]];
 
     // Apply force that brings our velocity closer to the neighboring particle's.
     force += (pi.velocity - p.velocity) * (particle_mass / pi.density) * viscosity_kernel_laplacian(optix::length(pi.position - p.position));
@@ -282,7 +282,7 @@ RT_FUNCTION float3 gravity_force(float particle_density) {
 }
 
 // Computes the inward facing cohesion force for surface fluid particles.
-RT_FUNCTION float3 surface_tension_force(Particle& p,
+RT_FUNCTION float3 surface_tension_force(const Particle& p,
                                          unsigned int nn_count,
                                          unsigned int* nn) {
 
@@ -290,7 +290,7 @@ RT_FUNCTION float3 surface_tension_force(Particle& p,
   // See eq 4.28 and fig 4.6
   float3 inward_surface_normal = make_float3(0.0f);
   for (int i = 0; i < nn_count; i++) {
-    Particle& pi = particles_buffer[nn[i]];
+    const Particle& pi = particles_buffer[nn[i]];
 
     // In eq 4.27 we show that the color field (exact locations of particles) can be written in SPH formulation.
     // We then take the gradient to determine in which direction there are more particles.

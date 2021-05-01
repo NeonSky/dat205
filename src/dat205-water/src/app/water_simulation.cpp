@@ -142,14 +142,19 @@ void Application::setup_water_physics() {
   m_ctx["rest_density"]->setFloat(rest_density); // [kg / m^3]
 
   // The volume of water that our particles are together representing.
-  float fluid_volume = 0.15f; // [m^3]
+  // The current setup is a bit arbitrary, but roughly mimics the cube we start with in setup 1.
+  float fluid_volume = m_particles_count * pow(2.0f * m_particles_radius, 3.0f); // [m^3]
 
   // The mass-per-particle amount that follows from this volume.
   float particle_mass = (fluid_volume / m_particles_count) * rest_density; // [kg]
   m_ctx["particle_mass"]->setFloat(particle_mass); // [kg]
 
   // Upper bound on pair-wise direct interaction range between particles.
-  float support_radius = 0.0457f; // [m], see table on p51
+  // Will produce values very close to 0.0457f (See table on p51)
+  // See eq 5.14 and fig 5.3
+  float average_neighbor_count = 30; // The average amount of neighboring particles we use (at rest density).
+  float support_radius = pow(3.0f * fluid_volume * average_neighbor_count / (4.0f * M_PI * m_particles_count), 1.0f / 3.0f); // [m]
+
   m_ctx["support_radius"]->setFloat(support_radius); // [m]
 
   // The side length of the voxel that each hash cell represents.
