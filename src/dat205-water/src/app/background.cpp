@@ -57,14 +57,14 @@ void Application::create_background_geometry() {
     add_glass_pane(
         Matrix<4, 4>::translate(make_float3(-m_box_width, m_box_height, 0.0f)) *
         Matrix<4, 4>::rotate(M_PI_2, make_float3(0.0f, 0.0f, 1.0f)) *
-        Matrix<4, 4>::scale(make_float3(m_box_height, 1.0f, m_box_width))
+        Matrix<4, 4>::scale(make_float3(m_box_height, 1.0f, m_box_depth))
     );
 
     // Right wall
     add_glass_pane(
         Matrix<4, 4>::translate(make_float3(m_box_width, m_box_height, 0.0f)) *
         Matrix<4, 4>::rotate(-M_PI_2, make_float3(0.0f, 0.0f, 1.0f)) *
-        Matrix<4, 4>::scale(make_float3(m_box_height, 1.0f, m_box_width))
+        Matrix<4, 4>::scale(make_float3(m_box_height, 1.0f, m_box_depth))
     );
 
     // Far wall

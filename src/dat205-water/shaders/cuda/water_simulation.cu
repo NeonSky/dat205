@@ -353,7 +353,9 @@ RT_FUNCTION void collision_detection(Particle& p) {
   // See eq 4.58
   float penetration_depth = optix::length(p.position - contact_point);
   p.velocity = p.velocity - (1.0f + restitution * penetration_depth / (dt * optix::length(p.velocity))) * optix::dot(p.velocity, surface_normal) * surface_normal;
-  p.position = contact_point;
+
+  // Implementation detail: to not have particles perfectly at the same position in corners, we add a small "random" offset (by using their velocity).
+  p.position = contact_point + 0.000001f * p.velocity;
 }
 
 // Updates the simulation by one time step.
