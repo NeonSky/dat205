@@ -210,6 +210,7 @@ RT_PROGRAM void update_particles_data() {
 ///////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////
+
 RT_FUNCTION float sign(float x) {
 	return x > 0.0f ? 1.0f : -1.0f;
 }
@@ -320,6 +321,33 @@ RT_FUNCTION float3 surface_tension_force(const Particle& p,
   return force;
 }
 
+// Updates the simulation by one time step.
+// See p54
+RT_PROGRAM void update_force() {
+    Particle& p = particles_buffer[launch_index];
+
+    // Find nearest neighbors
+    unsigned int nn_count = 0;
+    unsigned int nn[3 * 3 * 3 * HASH_CELL_SIZE];
+    nearest_neighbor_search(p, nn_count, nn);
+
+    float3 tot_force = make_float3(0.0f);
+
+    // Internal forces
+    tot_force += pressure_force(p, nn_count, nn);
+    tot_force += viscosity_force(p, nn_count, nn);
+
+    // External forces
+    tot_force += gravity_force(p.density);
+    tot_force += surface_tension_force(p, nn_count, nn);
+
+    p.force = tot_force;
+}
+
+///////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////
+
 // Simulates one simulation step of the provided force onto the given particle.
 RT_FUNCTION void euler_cromer(Particle& p, float3 force) {
     float3 acceleration = force / p.density; // eq 4.2
@@ -358,28 +386,12 @@ RT_FUNCTION void collision_detection(Particle& p) {
   p.position = contact_point + 0.000001f * p.velocity;
 }
 
-// Updates the simulation by one time step.
-// See p54
-RT_PROGRAM void update() {
+// Time integrates each particle and handles boundary collisions.
+RT_PROGRAM void update_particles() {
     Particle& p = particles_buffer[launch_index];
 
-    // Find nearest neighbors
-    unsigned int nn_count = 0;
-    unsigned int nn[3 * 3 * 3 * HASH_CELL_SIZE];
-    nearest_neighbor_search(p, nn_count, nn);
-
-    float3 tot_force = make_float3(0.0f);
-
-    // Internal forces
-    tot_force += pressure_force(p, nn_count, nn);
-    tot_force += viscosity_force(p, nn_count, nn);
-
-    // External forces
-    tot_force += gravity_force(p.density);
-    tot_force += surface_tension_force(p, nn_count, nn);
-
     // Integrate forces over time
-    euler_cromer(p, tot_force);
+    euler_cromer(p, p.force);
 
     // Handle potential collisions
     collision_detection(p);

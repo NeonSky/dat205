@@ -16,7 +16,8 @@ void Application::setup_water_particles() {
   m_ctx->setRayGenerationProgram(1, m_ctx->createProgramFromPTXFile(ptxPath("water_simulation.cu"), "reset_nearest_neighbors"));
   m_ctx->setRayGenerationProgram(2, m_ctx->createProgramFromPTXFile(ptxPath("water_simulation.cu"), "update_nearest_neighbors"));
   m_ctx->setRayGenerationProgram(3, m_ctx->createProgramFromPTXFile(ptxPath("water_simulation.cu"), "update_particles_data"));
-  m_ctx->setRayGenerationProgram(4, m_ctx->createProgramFromPTXFile(ptxPath("water_simulation.cu"), "update"));
+  m_ctx->setRayGenerationProgram(4, m_ctx->createProgramFromPTXFile(ptxPath("water_simulation.cu"), "update_force"));
+  m_ctx->setRayGenerationProgram(5, m_ctx->createProgramFromPTXFile(ptxPath("water_simulation.cu"), "update_particles"));
 
   // Setup particles.
   int side_length = 20; // ~8k particles
@@ -81,7 +82,7 @@ void Application::setup_water_particles() {
   m_particles_buffer->unmap();
 
   // Determine suitable hash table size using eq 5.4: nextPrime(2 * m_particles_count)
-  std::vector<HashCell> hash_table(16001); // Based on 20^3. Prime manually picked from: http://compoasso.free.fr/primelistweb/page/prime/liste_online_en.php
+  std::vector<HashCell> hash_table(54001); // Based on 30^3. Prime manually picked from: http://compoasso.free.fr/primelistweb/page/prime/liste_online_en.php
 
   // Create hash table buffer.
   m_hash_buffer = m_ctx->createBuffer(RT_BUFFER_INPUT);
@@ -192,8 +193,11 @@ void Application::update_water_simulation(float dt) {
   // Update particle data.
   m_ctx->launch(3, m_particles_count);
 
-  // Update simulation one by timestep.
+  // Update particle forces.
   m_ctx->launch(4, m_particles_count);
+
+  // Update simulation by one timestep.
+  m_ctx->launch(5, m_particles_count);
 
   // Mark particle bounding boxes as outdated.
   m_water_acceleration->markDirty();

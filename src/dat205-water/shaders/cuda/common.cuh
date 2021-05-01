@@ -41,6 +41,7 @@ struct PointLight {
 struct Particle {
   optix::float3 position;
   optix::float3 velocity;
+  optix::float3 force;
   float density;
   float pressure;
   unsigned int prev_hash_cell_index;
