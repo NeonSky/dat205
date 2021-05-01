@@ -133,7 +133,7 @@ RT_FUNCTION void nearest_neighbor_search(Particle& p,
 // The Poly 6 Smoothing Kernel
 // Behaves similarly to a normal distribution but is quite fast to compute.
 // NOTE: this is a normalized smoothing kernel, which means that \int W(|x - x_i|) dx = 1
-// See eq 4.3
+// See eq 4.3 and fig 4.2
 RT_FUNCTION float poly6_kernel(float distance) {
   if (distance >= support_radius) {
     return 0.0f;
@@ -214,9 +214,9 @@ RT_FUNCTION float sign(float x) {
 	return x > 0.0f ? 1.0f : -1.0f;
 }
 
-// The "spiky" kernel.
+// The "spiky" kernel (symmetric).
 // This is used to prevent clusters when distance approaches 0.
-// See eq 4.14
+// See eq 4.14 and fig 4.4
 RT_FUNCTION float3 pressure_kernel_gradient(float3 dist_vec) {
   float distance = optix::length(dist_vec);
   if (distance >= support_radius) {
@@ -228,7 +228,8 @@ RT_FUNCTION float3 pressure_kernel_gradient(float3 dist_vec) {
   }
 }
 
-// eq 4.10
+// Computes the symmetric pressure force acting on this particle (due to neighboring particles).
+// See eq 4.10 and fig 4.3
 RT_FUNCTION float3 pressure_force(Particle& p,
                                   unsigned int nn_count,
                                   unsigned int* nn) {
@@ -237,13 +238,18 @@ RT_FUNCTION float3 pressure_force(Particle& p,
     Particle& pi = particles_buffer[nn[i]];
     float3 dist_vec = p.position - pi.position;
 
+    // Higher pressure between the two particles results in stronger force.
+    // The density divisions are used to ensure symmetry.
+    // NOTE: eq 4.11 is a bit easier to analyze, but appears to perform worse.
     force += particle_mass * (p.pressure / powf(p.density, 2.0f) + pi.pressure / powf(pi.density, 2.0f)) * pressure_kernel_gradient(dist_vec);
   }
-  force *= -1.0f * p.density;
+  force *= -1.0f * p.density; // We negate to convert the vector back to facing towards `p` again.
   return force;
 }
 
-// eq 4.22
+// Strictly positive, which is required for avoiding introducing of energy and instability into the viscosity system.
+// Symmetric, just like the other kernels.
+// See eq 4.22 and fig 4.5
 RT_FUNCTION float viscosity_kernel_laplacian(float distance) {
   if (distance >= support_radius) {
     return 0.0f;
@@ -252,7 +258,8 @@ RT_FUNCTION float viscosity_kernel_laplacian(float distance) {
   }
 }
 
-// eq 4.17
+// Computes the viscosity force which causes particles to gradually conform to the surrounding fluid velocity.
+// See eq 4.17
 RT_FUNCTION float3 viscosity_force(Particle& p,
                                    unsigned int nn_count,
                                    unsigned int* nn) {
@@ -260,35 +267,45 @@ RT_FUNCTION float3 viscosity_force(Particle& p,
   for (int i = 0; i < nn_count; i++) {
     Particle& pi = particles_buffer[nn[i]];
 
+    // Apply force that brings our velocity closer to the neighboring particle's.
     force += (pi.velocity - p.velocity) * (particle_mass / pi.density) * viscosity_kernel_laplacian(optix::length(pi.position - p.position));
   }
   force *= viscosity;
   return force;
 }
 
-// eq 4.24
+// Computes the gravity force density along the negative y-axis.
+// See eq 4.24
 RT_FUNCTION float3 gravity_force(float particle_density) {
+  // Should be multipled by volume as well, but this conforms to eq 4.24 (which presumably assumes constant volume).
   return particle_density * make_float3(0.0f, g, 0.0f);
 }
 
+// Computes the inward facing cohesion force for surface fluid particles.
 RT_FUNCTION float3 surface_tension_force(Particle& p,
                                          unsigned int nn_count,
                                          unsigned int* nn) {
 
-  // eq 4.28
+  // Compute the inverse/inward surface normal.
+  // See eq 4.28 and fig 4.6
   float3 inward_surface_normal = make_float3(0.0f);
   for (int i = 0; i < nn_count; i++) {
     Particle& pi = particles_buffer[nn[i]];
 
+    // In eq 4.27 we show that the color field (exact locations of particles) can be written in SPH formulation.
+    // We then take the gradient to determine in which direction there are more particles.
     inward_surface_normal += (particle_mass / pi.density) * poly6_kernel_gradient(p.position - pi.position);
   }
 
+  // Use threshold to ensure numerical stability.
+  // The most contributing particles are the surface particles anyways.
   float normal_dist = optix::length(inward_surface_normal);
   if (normal_dist < l_threshold) {
     return make_float3(0.0f);
   }
 
-  // eq 4.26
+  // Compute the laplacian of the color field.
+  // See eq 4.26
   float laplacian = (particle_mass / p.density) * poly6_kernel_laplacian(0.0f);
   for (int i = 0; i < nn_count; i++) {
     Particle& pi = particles_buffer[nn[i]];
@@ -297,82 +314,50 @@ RT_FUNCTION float3 surface_tension_force(Particle& p,
     laplacian += (particle_mass / pi.density) * poly6_kernel_laplacian(distance);
   }
 
-  float3 force = -surface_tension * laplacian * (inward_surface_normal / normal_dist);
+  // We use the laplacian here because it measures the divergence of the normal (i.e. surface curvature).
+  float3 force = -surface_tension * laplacian * (inward_surface_normal / normal_dist); // eq 4.26
 
   return force;
 }
 
+// Simulates one simulation step of the provided force onto the given particle.
 RT_FUNCTION void euler_cromer(Particle& p, float3 force) {
     float3 acceleration = force / p.density; // eq 4.2
     p.velocity += dt * acceleration;
     p.position += dt * p.velocity;
 }
 
+// Modifies particle velocity and position based on potential collisions with boundaries.
 RT_FUNCTION void collision_detection(Particle& p) {
 
-  // Early exit
+  // Early Exit (no collision possible)
   if (x_min <= p.position.x && p.position.x <= x_max &&
       y_min <= p.position.y &&
       z_min <= p.position.z && p.position.z <= z_max) {
     return;
   }
 
+  // Compute a simplified (projected) contact point (as opposed to traversing the particle velocity backwards).
   float3 contact_point = p.position;
   contact_point.x = min(x_max, max(x_min, p.position.x));
   contact_point.y = max(y_min, p.position.y);
   contact_point.z = min(z_max, max(z_min, p.position.z));
 
-  char maxComponent = 'y';
-  float maxDepth    = y_min - p.position.y;
+  // Determine surface normal.
+  // This approach will slightly round the box corners, but is a very short/concise implementation.
+  // Not rounding the corners (see a previous commit) seems to make no practical difference anyways.
+  float3 surface_normal = optix::normalize(contact_point - p.position);
 
-  if (maxDepth < x_min - p.position.x) {
-      maxComponent = 'x';
-      maxDepth = x_min - p.position.x;
-  } else if (maxDepth < p.position.x - x_max) {
-      maxComponent = 'x';
-      maxDepth = p.position.x - x_max;
-  }
-
-  if (maxDepth < z_min - p.position.z) {
-      maxComponent = 'z';
-      maxDepth = z_min - p.position.z;
-  } else if (maxDepth < p.position.z - z_max) {
-      maxComponent = 'z';
-      maxDepth = p.position.z - z_max;
-  }
-
-  float3 surface_normal = make_float3(0.0f);
-  switch (maxComponent) {
-    case 'x':
-      if (p.position.x < x_min) {
-          surface_normal = make_float3(1.0f,  0.0f,  0.0f);
-      }
-      else if (p.position.x > x_max) {
-          surface_normal = make_float3(-1.0f,  0.0f,  0.0f);
-      }
-      break;
-    case 'y':
-      if (p.position.y < y_min) {
-          surface_normal = make_float3(0.0f,  1.0f,  0.0f);
-      }
-      break;
-    case 'z':
-      if (p.position.z < z_min) {
-          surface_normal = make_float3(0.0f,  0.0f,  1.0f);
-      }
-      else if (p.position.z > z_max) {
-          surface_normal = make_float3(0.0f,  0.0f, -1.0f);
-      }
-      break;
-  }
-
-  // eq 4.58
+  // Reflect the particle along the standard reflection vector.
+  // When restitution is used, we also the velocity that disappeared to the penetration distance.
+  // See eq 4.58
   float penetration_depth = optix::length(p.position - contact_point);
   p.velocity = p.velocity - (1.0f + restitution * penetration_depth / (dt * optix::length(p.velocity))) * optix::dot(p.velocity, surface_normal) * surface_normal;
   p.position = contact_point;
 }
 
-// p54
+// Updates the simulation by one time step.
+// See p54
 RT_PROGRAM void update() {
     Particle& p = particles_buffer[launch_index];
 
