@@ -71,6 +71,20 @@ void Application::setup_water_particles() {
   //   }
   // }
 
+  // Water simulation setup: split cube by velocity (creates a vague vortex).
+  {
+    float3 offset = make_float3(0.0f, 0.5f, 0.0f) - make_float3((side_length / 2) * 2.0f * m_particles_radius);
+    for (int x = 0; x < side_length; x++) {
+      for (int y = 0; y < side_length; y++) {
+        for (int z = 0; z < side_length; z++) {
+          Particle& p = particles[x * side_length * side_length + y * side_length + z];
+          p.position = offset + 2.0f * m_particles_radius * make_float3(x, y, z);
+          p.velocity = make_float3(0.0f, 0.0f, 5.0f * (p.position.x < 0.0f ? 1.0f : -1.0f));
+        }
+      }
+    }
+  }
+
   // Create particles buffer.
   m_particles_buffer = m_ctx->createBuffer(RT_BUFFER_INPUT);
   m_particles_buffer->setFormat(RT_FORMAT_USER);
