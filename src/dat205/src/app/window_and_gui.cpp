@@ -6,6 +6,7 @@ void Application::render_gui(unsigned int fps) {
     if (m_show_gui) {
       ImGui::Begin("DAT205");
       ImGui::Text("FPS: %u", fps);
+      ImGui::SliderInt("SSAA", &m_ssaa, 1, 10);
       if (m_game->winner() == 0) {
         ImGui::Text("Player 1 points: %d", m_game->player1_score());
         ImGui::Text("Player 2 points: %d", m_game->player2_score());

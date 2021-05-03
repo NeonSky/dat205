@@ -16,22 +16,25 @@ rtDeclareVariable(float3, camera_right  , , );
 rtDeclareVariable(float3, camera_up     , , );
 rtDeclareVariable(float3, camera_forward, , );
 
+// Supersampling anti-aliasing (SSAA).
+rtDeclareVariable(int, ssaa, , );
+
 // Entry point for this ray tracing kernel.
 RT_PROGRAM void ray_generation() {
 
   const float2 pixel = make_float2(launch_index);
   const float2 pixel_center = pixel + make_float2(0.5f);
 
-  // Shoots jittered samples to approximate the true pixel radiance.
-  const unsigned int n_samples = 1;
   float3 tot_radiance = make_float3(0.0f);
 
-  for (int i = 0; i < n_samples; i++) {
+  // Shoots jittered samples to approximate the true pixel radiance.
+  for (int i = 0; i < ssaa; i++) {
 
     // Generate a small offset from the pixel center.
     unsigned int seed = launch_dim.x * launch_index.x + launch_dim.y * launch_index.y + i;
     float2 subpixel_jitter = make_float2(rnd(seed) - 0.5f, rnd(seed) - 0.5f);
-    subpixel_jitter *= 0.5f; // Looks a bit better with this when only using a single sample.
+
+    subpixel_jitter *= (0.5f + 0.05f * ssaa); // Looks a bit better this way when only using a few samples (currently based on a max ssaa of 10).
 
     // Derive the ray direction for the sampled subpixel.
     const float2 screen = make_float2(launch_dim);
@@ -53,5 +56,5 @@ RT_PROGRAM void ray_generation() {
   }
 
   // Write result to output buffer.
-  output_buffer[launch_index] = make_float4(tot_radiance / n_samples, 1.0f);
+  output_buffer[launch_index] = make_float4(tot_radiance / ssaa, 1.0f);
 }

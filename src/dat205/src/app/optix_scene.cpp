@@ -51,6 +51,8 @@ void Application::render_scene() {
     m_ctx["camera_forward"]->setFloat(camera_forward);
   }
 
+  m_ctx["ssaa"]->setInt(m_ssaa);
+
   m_ctx->launch(0, m_window_width, m_window_height);
 
   // Unpack pixel data from CUDA to output texture.

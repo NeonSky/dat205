@@ -39,6 +39,9 @@ private:
 
   void update_viewport();
 
+  // Supersampling anti-aliasing (SSAA)
+  int m_ssaa;
+
   // GUI
   bool m_show_gui;
 

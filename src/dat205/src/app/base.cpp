@@ -14,6 +14,9 @@ Application::Application(ApplicationCreateInfo create_info) {
   m_camera.m_fov = 80.0f;
   m_camera_zoom_speed  = 4.5f;
 
+  // SSAA
+  m_ssaa = 1;
+
   // GUI
   m_show_gui = true;
 
