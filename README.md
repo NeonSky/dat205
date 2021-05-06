@@ -3,7 +3,7 @@
 ## Dependencies
 
 * C++11
-* CUDA 9.0
+* CUDA 9.0 (might need /opt/cuda-9.0/bin in PATH)
 * OptiX SDK 5.1.1 (https://developer.nvidia.com/designworks/optix/downloads/5.1.1/linux64)
 
 ```
